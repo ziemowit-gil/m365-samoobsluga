@@ -41,6 +41,11 @@ done
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 [[ -f "$REPO_DIR/M365Samoobsluga.sln" ]] || { echo "Nie znaleziono repozytorium w $REPO_DIR." >&2; exit 1; }
+if [[ "$REPO_DIR" == "$APP_DIR" || "$REPO_DIR" == "$APP_DIR"/* ]]; then
+  echo "Repozytorium leży w $APP_DIR, czyli tam, gdzie skrypt publikuje aplikację. Przenieś je, np.:" >&2
+  echo "  mv $REPO_DIR /usr/local/src/m365-samoobsluga && cd /usr/local/src/m365-samoobsluga && sudo ./scripts/install-ubuntu.sh ..." >&2
+  exit 1
+fi
 
 echo "==> Pakiety systemowe"
 apt-get update -qq
