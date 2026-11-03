@@ -2,6 +2,9 @@ using System.Text.RegularExpressions;
 
 namespace M365Samoobsluga.Core.Services;
 
+/// <summary>Uprawnienie delegowane Microsoft Graph, które trzeba dodać w rejestracji aplikacji, i po co.</summary>
+public sealed record AzurePermission(string Name, string Purpose);
+
 /// <summary>Adres, który trzeba dodać w rejestracji aplikacji w Entra ID (Azure).</summary>
 public sealed record AzureUri(string Label, string Value, string Where);
 
@@ -32,6 +35,15 @@ public static partial class AzureSetup
             return (null, "Poza localhostem Entra ID wymaga adresu https.");
         return (u.GetLeftPart(UriPartial.Authority) + "/", null);
     }
+
+    /// <summary>Uprawnienia delegowane Graph używane przez aplikację (zgodne z DownstreamApis:MicrosoftGraph:Scopes w appsettings.json).</summary>
+    public static readonly IReadOnlyList<AzurePermission> RequiredPermissions =
+    [
+        new("User.Read", "Odczyt profilu zalogowanej osoby, jej aliasów i zweryfikowanych domen organizacji."),
+        new("MailboxSettings.ReadWrite", "Autoresponder i przekierowanie poczty we własnej skrzynce."),
+        new("User-PasswordProfile.ReadWrite.All", "Zmiana własnego hasła (wymaga zgody administratora; działa tylko na koncie zalogowanej osoby)."),
+        new("UserAuthenticationMethod.ReadWrite", "Lista i usuwanie własnych metod weryfikacji dwuetapowej."),
+    ];
 
     /// <summary>Adresy do wpisania w Azure dla danego adresu aplikacji (zob. README: rejestracja aplikacji).</summary>
     public static IReadOnlyList<AzureUri> RedirectUris(string baseUrl)

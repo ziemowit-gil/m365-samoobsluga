@@ -54,6 +54,14 @@ public class AzureSetupTests
     }
 
     [Fact]
+    public void Lista_uprawnien_zgadza_sie_z_zakresami_w_konfiguracji()
+    {
+        var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "M365Samoobsluga.Web", "appsettings.json"));
+        foreach (var p in AzureSetup.RequiredPermissions) Assert.Contains($"\"{p.Name}\"", json);
+        Assert.Equal(4, AzureSetup.RequiredPermissions.Count);
+    }
+
+    [Fact]
     public void Adresy_do_azure_dopisuja_ukosnik() =>
         Assert.Equal("https://p.example.org/signin-oidc", AzureSetup.RedirectUris("https://p.example.org")[0].Value);
 }

@@ -32,3 +32,17 @@ else
         if (url is not null) { BaseUrl = url; BaseUrlChanged.InvokeAsync(url); }
     }
 }
+
+<h2>Uprawnienia do dodania w Azure</h2>
+<p>W tej samej rejestracji: Uprawnienia interfejsu API (API permissions) → Dodaj uprawnienie (Add a permission) → Microsoft Graph → Uprawnienia delegowane (Delegated permissions). Dodaj poniższe, a potem kliknij Udziel zgody administratora (Grant admin consent).</p>
+<table>
+    <caption class="sr-only">Uprawnienia Microsoft Graph</caption>
+    <thead><tr><th scope="col">Uprawnienie</th><th scope="col">Do czego</th></tr></thead>
+    <tbody>
+    @foreach (var p in AzureSetup.RequiredPermissions)
+    {
+        <tr><td><code>@p.Name</code></td><td>@p.Purpose</td></tr>
+    }
+    </tbody>
+</table>
+<p>Sekret klienta: Certyfikaty i wpisy tajne (Certificates &amp; secrets) → Nowy wpis tajny klienta (New client secret). Skopiuj kolumnę Wartość (Value) i wpisz ją na serwerze w pliku <code>/etc/m365-samoobsluga.env</code>.</p>
