@@ -124,7 +124,6 @@ EOF
     echo "    Konfiguracja nginx ma już HTTPS (certbot), więc jej nie zmieniam."
   else
   cat > "/etc/nginx/sites-available/$SERVICE" <<EOF
-  fi
 # Schemat widziany przez klienta: za Cloudflare (tryb Flexible lub Full) nagłówek X-Forwarded-Proto ma wartość https,
 # mimo że połączenie Cloudflare z serwerem może iść po http. Bez tego logowanie Entra zbudowałoby adres http://.
 map \$http_x_forwarded_proto \$m365_proto {
@@ -149,6 +148,7 @@ server {
     }
 }
 EOF
+  fi
   ln -sf "/etc/nginx/sites-available/$SERVICE" "/etc/nginx/sites-enabled/$SERVICE"
   nginx -t && systemctl reload nginx
   echo "    HTTPS: sudo apt install certbot python3-certbot-nginx && sudo certbot --nginx -d $DOMAIN"
