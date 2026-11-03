@@ -113,6 +113,13 @@ systemctl enable --now "$SERVICE" >/dev/null
 if [[ -n "$DOMAIN" ]]; then
   echo "==> nginx dla $DOMAIN"
   apt-get install -y -qq nginx >/dev/null
+  # Logowanie przez Microsoft (OIDC) daje duże ciasteczka sesji. Osobny plik, więc certbot go nie nadpisuje.
+  cat > "/etc/nginx/conf.d/$SERVICE-buffers.conf" <<'EOF'
+large_client_header_buffers 4 32k;
+proxy_buffer_size 16k;
+proxy_buffers 8 16k;
+proxy_busy_buffers_size 32k;
+EOF
   cat > "/etc/nginx/sites-available/$SERVICE" <<EOF
 # Schemat widziany przez klienta: za Cloudflare (tryb Flexible lub Full) nagłówek X-Forwarded-Proto ma wartość https,
 # mimo że połączenie Cloudflare z serwerem może iść po http. Bez tego logowanie Entra zbudowałoby adres http://.
