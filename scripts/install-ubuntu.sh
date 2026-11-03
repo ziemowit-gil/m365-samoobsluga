@@ -120,7 +120,11 @@ proxy_buffer_size 16k;
 proxy_buffers 8 16k;
 proxy_busy_buffers_size 32k;
 EOF
+  if grep -q "ssl_certificate" "/etc/nginx/sites-available/$SERVICE" 2>/dev/null; then
+    echo "    Konfiguracja nginx ma już HTTPS (certbot), więc jej nie zmieniam."
+  else
   cat > "/etc/nginx/sites-available/$SERVICE" <<EOF
+  fi
 # Schemat widziany przez klienta: za Cloudflare (tryb Flexible lub Full) nagłówek X-Forwarded-Proto ma wartość https,
 # mimo że połączenie Cloudflare z serwerem może iść po http. Bez tego logowanie Entra zbudowałoby adres http://.
 map \$http_x_forwarded_proto \$m365_proto {
