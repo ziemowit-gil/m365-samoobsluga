@@ -75,4 +75,12 @@ public class AddressValidatorTests
     [Fact]
     public void Przekierowanie_zablokowana_domena() =>
         Assert.False(AddressValidator.ValidateForwardingAddress("a@zle.pl", [], ["zle.pl"]).IsValid);
+
+    [Fact]
+    public void Domena_domyslna_jest_pierwsza_a_reszta_alfabetycznie() =>
+        Assert.Equal(["feer.org.pl", "feer.onmicrosoft.com", "inna.pl"], AddressValidator.OrderDomains(["inna.pl", "feer.onmicrosoft.com", "FEER.org.pl"], "feer.org.pl"));
+
+    [Fact]
+    public void Domyslna_spoza_listy_nie_dodaje_sie() =>
+        Assert.Equal(["a.pl", "b.pl"], AddressValidator.OrderDomains(["b.pl", "a.pl"], "feer.org.pl"));
 }

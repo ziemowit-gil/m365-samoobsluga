@@ -73,6 +73,14 @@ public class ExchangeRuleBuilderTests
     }
 
     [Fact]
+    public void Szablon_exchange_zawiera_ogolny_numer_organizacji_jako_stala_tresc()
+    {
+        var h = ExchangeRuleBuilder.BuildTemplateHtml(new M365Samoobsluga.Core.Models.SignatureOrg { OrgName = "FEER", Phone = "+48 22 123 45 67" }, new());
+        Assert.Contains("Tel. ogólny: +48 22 123 45 67", h);
+        Assert.Contains("%%MobilePhone%%", h);
+    }
+
+    [Fact]
     public void Podglad_podstawia_dane_i_koduje_html()
     {
         var h = ExchangeRuleBuilder.Substitute(ExchangeRuleBuilder.BuildTemplateHtml(Org, new()), new("A <b>", "T", "1", "a@x.pl"));

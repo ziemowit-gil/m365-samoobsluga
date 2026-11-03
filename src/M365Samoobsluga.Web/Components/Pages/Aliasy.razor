@@ -3,6 +3,7 @@
 @attribute [Authorize]
 @inject IAliasService Svc
 @inject UiGuard Guard
+@inject IConfiguration Config
 <PageTitle>Aliasy · Samoobsługa poczty</PageTitle>
 <h1>Aliasy e-mail</h1>
 @if (loading) { <p role="status">Wczytywanie…</p> }
@@ -34,7 +35,7 @@ else
     <div class="field"><label for="lp">Nazwa aliasu (przed znakiem @@)</label><input id="lp" type="text" autocomplete="off" @bind="local" /></div>
     <div class="field"><label for="dom">Domena</label>
         <select id="dom" @bind="domain">
-            @foreach (var d in data.VerifiedDomains)
+            @foreach (var d in Domains)
             {
                 <option value="@d">@d</option>
             }
@@ -43,9 +44,10 @@ else
 </EditForm>
 }
 @code {
+    IReadOnlyList<string> Domains => AddressValidator.OrderDomains(data?.VerifiedDomains ?? [], Config["Samoobsluga:DefaultAliasDomain"]);
     MailboxAliases? data; bool loading = true, busy; string? error, ok; string local = "", domain = "";
     protected override async Task OnInitializedAsync() { await Load(); loading = false; }
-    async Task Load() { error = await Guard.RunAsync(async () => { data = await Svc.GetAsync(); if (domain == "" ) domain = data.VerifiedDomains.FirstOrDefault() ?? ""; }); }
+    async Task Load() { error = await Guard.RunAsync(async () => { data = await Svc.GetAsync(); if (domain == "") domain = Domains.FirstOrDefault() ?? ""; }); }
     async Task Add()
     {
         busy = true; ok = null;

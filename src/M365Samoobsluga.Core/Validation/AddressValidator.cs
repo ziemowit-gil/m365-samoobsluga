@@ -8,6 +8,15 @@ public static class AddressValidator
     private static readonly Regex LocalPart = new(@"^[a-z0-9]+(?:[._-][a-z0-9]+)*$", RegexOptions.Compiled);
     private static readonly Regex Domain = new(@"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$", RegexOptions.Compiled);
 
+    /// <summary>Lista domen do wyboru: domyślna (np. feer.org.pl) na początku, reszta alfabetycznie. Domyślna spoza listy jest pomijana.</summary>
+    public static IReadOnlyList<string> OrderDomains(IEnumerable<string> domains, string? defaultDomain)
+    {
+        var list = domains.Select(d => d.Trim().ToLowerInvariant()).Where(d => d != "").Distinct().OrderBy(d => d, StringComparer.Ordinal).ToList();
+        var def = (defaultDomain ?? "").Trim().ToLowerInvariant();
+        if (def != "" && list.Remove(def)) list.Insert(0, def);
+        return list;
+    }
+
     /// <summary>
     /// Alias: wpisana część lokalna (przed @) + domena z listy zweryfikowanych domen tenanta.
     /// Zwraca znormalizowany adres małymi literami.
