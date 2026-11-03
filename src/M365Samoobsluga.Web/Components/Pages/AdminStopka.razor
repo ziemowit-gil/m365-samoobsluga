@@ -3,6 +3,8 @@
 @attribute [Authorize(Policy = "Admin")]
 @inject ISignatureTemplateStore Store
 @inject UiGuard Guard
+@inject IExchangeRuleDeployer Deployer
+@inject IExchangeAutomationStore AutoStore
 <PageTitle>Administrator: stopka · Samoobsługa poczty</PageTitle>
 <h1>Ustawienia stopki organizacji</h1>
 <p>Te dane i ten wygląd widzą wszyscy użytkownicy w swojej stopce. Każdy dodaje do nich tylko własne stanowisko i telefon.</p>
@@ -83,7 +85,16 @@ else
     {
         busy = true; ok = null;
         error = await Guard.RunAsync(() => Store.SaveAsync(new SignatureTemplate(o, d)));
-        if (error is null) { d = SignatureRenderer.Sanitize(d); ok = "Ustawienia stopki zapisane. Nowy wzór widzą wszyscy użytkownicy."; }
+        if (error is null)
+        {
+            d = SignatureRenderer.Sanitize(d); ok = "Ustawienia stopki zapisane. Nowy wzór widzą wszyscy użytkownicy.";
+            // Automatyka: jeśli włączona, reguła w Exchange sama się zakłada lub aktualizuje.
+            ExchangeOpResult? r = null;
+            var err = await Guard.RunAsync(async () => r = await M365Samoobsluga.Web.Auth.ExchangeRuleSync.DeployIfNeededAsync(Deployer, AutoStore, Store, false, default));
+            if (err is not null) error = err;
+            else if (r is { Success: true }) ok += " Reguła w Exchange została zaktualizowana.";
+            else if (r is not null) error = "Szablon zapisany, ale aktualizacja reguły w Exchange nie powiodła się: " + r.Output;
+        }
         busy = false;
     }
 }

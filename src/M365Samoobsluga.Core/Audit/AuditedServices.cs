@@ -63,3 +63,17 @@ public sealed class AuditedSignatureTemplateStore(ISignatureTemplateStore inner,
     public Task<SignatureTemplate> GetAsync(CancellationToken ct = default) => inner.GetAsync(ct);
     public Task SaveAsync(SignatureTemplate t, CancellationToken ct = default) => Run("admin.stopka.szablon.zapis", null, () => inner.SaveAsync(t, ct));
 }
+
+public sealed class AuditedExchangeRuleDeployer(IExchangeRuleDeployer inner, IAuditLog log, ICurrentUser user) : IExchangeRuleDeployer
+{
+    public bool IsConfigured => inner.IsConfigured;
+    private async Task<ExchangeOpResult> Run(string action, string? target, Func<Task<ExchangeOpResult>> op)
+    {
+        var r = await op();
+        log.Write(new AuditEntry(DateTimeOffset.UtcNow, user.Current.UserPrincipalName, action, target, r.Success, r.Success ? null : r.Output));
+        return r;
+    }
+    public Task<ExchangeOpResult> DeployAsync(string html, ExchangeRuleMode mode, CancellationToken ct = default) => Run("exchange.regula.wdroz", mode.ToString(), () => inner.DeployAsync(html, mode, ct));
+    public Task<ExchangeOpResult> RemoveAsync(CancellationToken ct = default) => Run("exchange.regula.usun", null, () => inner.RemoveAsync(ct));
+    public Task<ExchangeOpResult> ClearSignaturesAsync(string? mailbox, bool all, CancellationToken ct = default) => Run("exchange.podpisy.czyszczenie", all ? "wszystkie skrzynki" : mailbox, () => inner.ClearSignaturesAsync(mailbox, all, ct));
+}

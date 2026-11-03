@@ -4,10 +4,12 @@
 @inject ISignatureTemplateStore Store
 @inject IJSRuntime Js
 @inject UiGuard Guard
+@inject IExchangeRuleDeployer Deployer
+@inject IExchangeAutomationStore AutoStore
 <PageTitle>Administrator: stopka w Outlooku · Samoobsługa poczty</PageTitle>
 <h1>Stopka we wszystkich Outlookach</h1>
 <p>Reguła transportowa Exchange Online dopisuje stopkę do każdej wiadomości wychodzącej, więc działa tak samo w Outlooku na komputerze, w przeglądarce i w telefonie. Dane osoby (imię i nazwisko, stanowisko, telefon, adres e-mail) Exchange bierze z jej konta w katalogu. Wzór pochodzi ze strony <a href="admin/stopka">Administrator: stopka</a>.</p>
-<p class="msg info">Aplikacja nie zmienia ustawień Exchange sama. Wygenerowany skrypt uruchamia administrator Exchange po połączeniu z <code>Connect-ExchangeOnline</code>. Przy takim podejściu stopka nie widnieje w oknie pisania wiadomości, a użytkownicy nie powinni dodawać własnej w Outlooku, żeby nie powstały dwie.</p>
+<p class="msg info">Regułę możesz wdrożyć z aplikacji (przycisk niżej, po skonfigurowaniu połączenia certyfikatem) albo ręcznie skryptem PowerShell. Stopka z reguły nie widnieje w oknie pisania wiadomości, a użytkownicy nie powinni dodawać własnej w Outlooku, żeby nie powstały dwie.</p>
 @if (loading) { <p role="status">Wczytywanie…</p> }
 else
 {
@@ -31,7 +33,38 @@ else
     </p>
     <div role="status">@copied</div>
     <p>Zamiast wklejać skrypt możesz pobrać szablon HTML i uruchomić gotowy skrypt <code>scripts/Set-StopkaRule.ps1</code> z repozytorium (obsługuje <code>-WhatIf</code>, tryb Audit i Enforce oraz usunięcie reguły).</p>
-    <h2>Jak wdrożyć</h2>
+    <h2>Wdrożenie z aplikacji</h2>
+    @if (!Deployer.IsConfigured)
+    {
+        <p class="msg info">Połączenie z Exchange nie jest skonfigurowane, więc przyciski wdrożenia są wyłączone. Ustaw <code>Samoobsluga:Exchange</code> (certyfikat i Client ID aplikacji z uprawnieniem Exchange.ManageAsApp, opis w README) albo użyj pobranego skryptu.</p>
+    }
+    else
+    {
+        <p>Aplikacja łączy się z Exchange certyfikatem (bez użytkownika) i uruchamia PowerShell. Skonfigurowane połączenie jest gotowe.</p>
+    }
+    @if (execError is not null) { <p class="msg error" role="alert">@execError</p> }
+    @if (execOk is not null) { <p class="msg ok" role="status">@execOk</p> }
+    <div class="field check"><input id="autod" type="checkbox" @bind="autoDeploy" disabled="@(!Deployer.IsConfigured)" /><label for="autod">Automatycznie zakładaj i aktualizuj regułę po każdej zmianie szablonu</label></div>
+    <p class="hint">Aplikacja sprawdza też co godzinę, czy reguła w Exchange zgadza się z szablonem, i w razie różnicy ją aktualizuje. Używa trybu wybranego wyżej.</p>
+    <p>
+        <button type="button" disabled="@(!Deployer.IsConfigured || execBusy)" @onclick="SaveAuto">Zapisz ustawienie automatyki</button>
+        <button type="button" disabled="@(!Deployer.IsConfigured || execBusy || limitError is not null)" @onclick="DeployNow">Wdróż regułę teraz</button>
+        <button type="button" class="secondary" disabled="@(!Deployer.IsConfigured || execBusy)" @onclick="RemoveRule">Usuń regułę</button>
+    </p>
+    @if (auto.LastDeployedAt is not null) { <p>Ostatnie wdrożenie: @auto.LastDeployedAt.Value.ToLocalTime().ToString("d.MM.yyyy HH:mm"). @auto.LastResult</p> }
+    @if (execOutput is not null) { <pre class="preview" aria-label="Wynik polecenia">@execOutput</pre> }
+
+    <h2>Czyszczenie już wpisanych podpisów</h2>
+    <p>Usuwa podpisy zapisane przez użytkowników w ustawieniach poczty w Exchange i wyłącza ich automatyczne dodawanie, żeby nie dublowały stopki z reguły. Przed zmianą aplikacja zapisuje kopię zapasową w <code>App_Data/signature-backups</code>. Podpisy zapisane tylko na komputerze użytkownika (np. w Outlooku klasycznym) i podpisy mobilne tym nie znikną, a podpisy zsynchronizowane (roaming) mogą wymagać ręcznego usunięcia przez użytkownika.</p>
+    <fieldset>
+        <legend>Zakres</legend>
+        <div class="field check"><input id="c1" type="radio" name="scope" checked="@(!clearAll)" @onchange="() => clearAll = false" /><label for="c1">Jedna skrzynka</label></div>
+        <div class="field"><label for="cm">Adres skrzynki</label><input id="cm" type="text" inputmode="email" autocomplete="off" @bind="clearMailbox" disabled="@clearAll" /></div>
+        <div class="field check"><input id="c2" type="radio" name="scope" checked="@clearAll" @onchange="() => clearAll = true" /><label for="c2">Wszystkie skrzynki użytkowników</label></div>
+        <div class="field"><label for="cc">Aby potwierdzić, wpisz słowo WYCZYŚĆ</label><input id="cc" type="text" autocomplete="off" @bind="clearConfirm" /></div>
+    </fieldset>
+    <p><button type="button" class="secondary" disabled="@(!Deployer.IsConfigured || execBusy || clearConfirm.Trim() != "WYCZYŚĆ")" @onclick="ClearSignatures">Wyczyść podpisy</button></p>
+    <h2>Jak wdrożyć ręcznie</h2>
     <ol>
         <li>Zainstaluj moduł: <code>Install-Module ExchangeOnlineManagement</code>.</li>
         <li>Połącz się kontem z rolą do reguł transportowych: <code>Connect-ExchangeOnline</code>.</li>
@@ -49,6 +82,12 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        auto = await AutoStore.GetAsync();
+        mode = auto.Mode; autoDeploy = auto.AutoDeploy;
+        await LoadTemplate();
+    }
+    async Task LoadTemplate()
+    {
         error = await Guard.RunAsync(async () =>
         {
             var t = await Store.GetAsync();
@@ -57,7 +96,42 @@ else
         });
         loading = false;
     }
-    protected override void OnParametersSet() { }
+    ExchangeAutomation auto = ExchangeAutomation.Default; bool autoDeploy;
+    string? execError, execOk, execOutput; bool execBusy; bool clearAll; string clearMailbox = "", clearConfirm = "";
+
+    async Task Run(Func<Task<ExchangeOpResult>> op, string okMessage)
+    {
+        execBusy = true; execError = execOk = execOutput = null;
+        ExchangeOpResult? r = null;
+        var err = await Guard.RunAsync(async () => r = await op());
+        if (err is not null) execError = err;
+        else if (r is { Success: true }) { execOk = okMessage; execOutput = r.Output; }
+        else { execError = "Operacja nie powiodła się."; execOutput = r?.Output; }
+        execBusy = false;
+    }
+
+    async Task SaveAuto() { await Run(async () => { auto = auto with { Mode = mode, AutoDeploy = autoDeploy }; await AutoStore.SaveAsync(auto); return new ExchangeOpResult(true, ""); }, autoDeploy ? "Automatyka włączona. Reguła będzie zakładana i aktualizowana sama." : "Automatyka wyłączona."); }
+
+    async Task DeployNow() => await Run(async () =>
+    {
+        var r = await Deployer.DeployAsync(html, mode);
+        auto = auto with { Mode = mode, LastHash = r.Success ? ExchangeCommandBuilder.TemplateHash(html, mode) : auto.LastHash, LastDeployedAt = DateTimeOffset.UtcNow, LastResult = (r.Success ? "OK" : "Błąd") };
+        await AutoStore.SaveAsync(auto);
+        return r;
+    }, "Reguła została wdrożona w Exchange.");
+
+    async Task RemoveRule() => await Run(async () =>
+    {
+        var r = await Deployer.RemoveAsync();
+        if (r.Success) { autoDeploy = false; auto = auto with { AutoDeploy = false, LastHash = null, LastDeployedAt = DateTimeOffset.UtcNow, LastResult = "Reguła usunięta" }; await AutoStore.SaveAsync(auto); }
+        return r;
+    }, "Reguła została usunięta, a automatyka wyłączona.");
+
+    async Task ClearSignatures()
+    {
+        await Run(() => Deployer.ClearSignaturesAsync(clearMailbox, clearAll), "Podpisy zostały wyczyszczone.");
+        clearConfirm = "";
+    }
     string ScriptFor() => limitError is null ? ExchangeRuleBuilder.BuildScript(html, mode) : "";
     async Task DownloadScript() => await Js.InvokeVoidAsync("samoobsluga.download", "stopka-regula.ps1", ExchangeRuleBuilder.BuildScript(html, mode), "text/plain");
     async Task DownloadHtml() => await Js.InvokeVoidAsync("samoobsluga.download", "stopka-szablon.html", html, "text/html");

@@ -19,4 +19,9 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Skrypty PowerShell dla Exchange trafiają obok aplikacji (publish), bo uruchamia je panel administratora. -->
+    <Content Include="..\..\scripts\Set-StopkaRule.ps1" Link="scripts\Set-StopkaRule.ps1" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\scripts\Clear-UserSignatures.ps1" Link="scripts\Clear-UserSignatures.ps1" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

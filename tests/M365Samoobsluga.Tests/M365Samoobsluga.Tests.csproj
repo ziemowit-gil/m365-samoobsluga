@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\M365Samoobsluga.Core\M365Samoobsluga.Core.csproj" />
     <ProjectReference Include="..\..\src\M365Samoobsluga.Graph\M365Samoobsluga.Graph.csproj" />
+    <ProjectReference Include="..\..\src\M365Samoobsluga.Web\M365Samoobsluga.Web.csproj" />
   </ItemGroup>
 
 </Project>

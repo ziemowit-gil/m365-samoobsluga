@@ -79,12 +79,21 @@ builder.Services.AddScoped<UiGuard>();
 var defaultTemplate = new SignatureTemplate(
     opts.GetSection("Signature:Org").Get<M365Samoobsluga.Core.Models.SignatureOrg>() ?? new(),
     opts.GetSection("Signature:Design").Get<M365Samoobsluga.Core.Models.SignatureDesign>() ?? new());
+builder.Services.AddScoped<TemplateStoreAccessor>(sp => new TemplateStoreAccessor(
+    useMock ? sp.GetRequiredService<MockTemplateStore>() : new FileSignatureTemplateStore(Path.Combine(dataDir, "signature-template.json"), defaultTemplate)));
 builder.Services.AddScoped<ISignatureTemplateStore>(sp =>
-{
-    var inner = useMock ? (ISignatureTemplateStore)sp.GetRequiredService<MockTemplateStore>()
-                        : new FileSignatureTemplateStore(Path.Combine(dataDir, "signature-template.json"), defaultTemplate);
-    return new AuditedSignatureTemplateStore(inner, sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>());
-});
+    new AuditedSignatureTemplateStore(sp.GetRequiredService<TemplateStoreAccessor>().Raw, sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
+
+// Reguła stopki w Exchange: wdrożenie, usunięcie i czyszczenie podpisów z poziomu aplikacji przez PowerShell (certyfikat aplikacji).
+var exchange = opts.GetSection("Exchange").Get<ExchangeSettings>() ?? new ExchangeSettings();
+builder.Services.AddSingleton(exchange);
+builder.Services.AddSingleton<IExchangeAutomationStore>(new FileExchangeAutomationStore(Path.Combine(dataDir, "exchange-automation.json")));
+builder.Services.AddSingleton<PowerShellDeployerAccessor>(sp => new PowerShellDeployerAccessor(
+    useMock ? new MockExchangeDeployer()
+            : new PowerShellExchangeRuleDeployer(exchange, Path.Combine(AppContext.BaseDirectory, "scripts"), dataDir, sp.GetRequiredService<ILogger<PowerShellExchangeRuleDeployer>>())));
+builder.Services.AddScoped<IExchangeRuleDeployer>(sp =>
+    new AuditedExchangeRuleDeployer(sp.GetRequiredService<PowerShellDeployerAccessor>().Raw, sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
+if (!useMock && configured) builder.Services.AddHostedService<ExchangeRuleSync>();
 if (useMock) builder.Services.AddSingleton(new MockTemplateStore(defaultTemplate));
 
 // Administratorzy ustawień: Samoobsluga:Admins (UPN lub identyfikatory obiektu). W trybie demo administratorem jest konto demo.

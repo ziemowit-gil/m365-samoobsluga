@@ -107,6 +107,21 @@ Adres w Azure musi zgadzać się znak w znak z adresem w przeglądarce, razem z 
 
 Strona Administrator: stopka w Outlooku generuje regułę transportową, która dopisuje stopkę do każdej wiadomości wychodzącej od użytkowników organizacji. Działa w każdym Outlooku (komputer, przeglądarka, telefon), bo stopka jest dodawana na serwerze. Szablon bierze dane osoby z katalogu przez tokeny Exchange (`%%DisplayName%%`, `%%Title%%`, `%%MobilePhone%%`, `%%WindowsEmailAddress%%`), a wygląd z ustawień stopki. Aplikacja pokazuje podgląd, pilnuje limitu 5000 znaków i podaje skrypt PowerShell (`New-TransportRule` lub `Set-TransportRule`). Reguła startuje w trybie Audit, który niczego nie zmienia w wiadomościach. Po testach przełączasz ją na Enforce. Znacznik w nagłówku `X-Samoobsluga-Stopka` chroni przed drugą stopką w wątku. Aplikacja sama nie zmienia ustawień Exchange. Zamiast kopiować skrypt, możesz pobrać szablon HTML i uruchomić `scripts/Set-StopkaRule.ps1` (PowerShell; moduł ExchangeOnlineManagement; `-WhatIf` pokazuje plan, `-Mode Audit|Enforce`, `-Remove` usuwa regułę, połączenie interaktywne albo certyfikatem aplikacji). Przykład: `./scripts/Set-StopkaRule.ps1 -HtmlFile ./stopka-szablon.html -Mode Audit -WhatIf`. Przy stopce z serwera użytkownicy nie powinni dodawać własnej w Outlooku.
 
+## Wdrażanie reguły stopki z aplikacji (automatycznie)
+
+Na stronie Administrator: stopka w Outlooku aplikacja może sama założyć, zaktualizować i usunąć regułę w Exchange oraz wyczyścić podpisy, które użytkownicy już zapisali. Włączasz tam też automatykę: po każdej zmianie szablonu stopki, przy starcie i co godzinę aplikacja porównuje skrót szablonu z ostatnio wdrożonym i w razie różnicy zakłada lub aktualizuje regułę (w wybranym trybie Audit albo Enforce). Przy błędzie próba powtarza się przy następnym przebiegu, a wynik widać na stronie.
+
+Aplikacja uruchamia PowerShell (`scripts/Set-StopkaRule.ps1`, `scripts/Clear-UserSignatures.ps1`) z uwierzytelnianiem **certyfikatem aplikacji, bez użytkownika**. Argumenty trafiają do procesu jako lista (bez powłoki), szablon w pliku tymczasowym, a hasło do pliku certyfikatu tylko w zmiennej środowiskowej `M365_EXO_CERT_PASSWORD`. Każde wdrożenie, usunięcie i czyszczenie trafia do dziennika audytu.
+
+Przygotowanie (według dokumentacji [App-only authentication w Exchange Online PowerShell](https://learn.microsoft.com/powershell/exchange/app-only-auth-powershell-v2)):
+1. Na serwerze: `sudo ./scripts/install-exchange-tools-ubuntu.sh` (PowerShell 7 i moduł ExchangeOnlineManagement).
+2. Zalecana osobna rejestracja aplikacji tylko do Exchange. Dodaj do niej uprawnienie aplikacyjne `Exchange.ManageAsApp` (API: Office 365 Exchange Online) i zgodę administratora.
+3. Certyfikat samopodpisany (`openssl`, plik `.pfx` z hasłem), a jego część publiczną `.cer` wgraj do tej rejestracji.
+4. Nadaj głównej usłudze tej rejestracji **wąską** rolę: grupa ról Exchange z rolami „Transport Rules” i „User Options” (do podpisów), a nie Exchange Administrator ani Organization Management. Zmiany uprawnień i ról mogą się replikować 15 do 30 minut.
+5. W `/etc/m365-samoobsluga.env` dopisz hasło certyfikatu (`M365_EXO_CERT_PASSWORD=...`), a w konfiguracji (`Samoobsluga__Exchange__Enabled=true`, `Samoobsluga__Exchange__AppId`, `Samoobsluga__Exchange__CertificatePath`, `Samoobsluga__Exchange__Organization`) wskaż rejestrację i plik. Plik `.pfx` niech czyta tylko konto usługi (`chmod 600`).
+
+Czyszczenie podpisów zapisuje kopię zapasową w `App_Data/signature-backups/` i działa na ustawieniach podpisu zapisanych w Exchange (Outlook w przeglądarce). Podpisów zapisanych tylko na komputerze, w aplikacjach mobilnych ani zsynchronizowanych podpisów roamingowych Outlooka to nie usuwa. Microsoft nie ma dla nich wspieranego API, więc w takich przypadkach użytkownik usuwa podpis sam albo administrator wyłącza roaming signatures w organizacji (sprawdź aktualne opcje w dokumentacji Exchange).
+
 ## Konfiguracja
 
 `appsettings.json` ma puste `TenantId` i `ClientId`. Wpisz je na stronie `/setup` (patrz wyżej) albo ustaw przez User Secrets lub zmienne środowiskowe:

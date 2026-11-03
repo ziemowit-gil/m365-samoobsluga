@@ -114,3 +114,13 @@ public sealed class MockTemplateStore(SignatureTemplate initial) : ISignatureTem
         _t = new SignatureTemplate(t.Org, SignatureRenderer.Sanitize(t.Design)); return Task.CompletedTask;
     }
 }
+
+public sealed class MockExchangeDeployer : IExchangeRuleDeployer
+{
+    public bool IsConfigured => true;
+    public Task<ExchangeOpResult> DeployAsync(string html, ExchangeRuleMode mode, CancellationToken ct = default) =>
+        Task.FromResult(ExchangeRuleBuilder.Validate(html) is { } e ? new ExchangeOpResult(false, e) : new ExchangeOpResult(true, $"(demo) Reguła utworzona lub zaktualizowana, tryb {mode}, {html.Length} znaków."));
+    public Task<ExchangeOpResult> RemoveAsync(CancellationToken ct = default) => Task.FromResult(new ExchangeOpResult(true, "(demo) Reguła usunięta."));
+    public Task<ExchangeOpResult> ClearSignaturesAsync(string? mailbox, bool all, CancellationToken ct = default) =>
+        Task.FromResult(new ExchangeOpResult(true, $"(demo) Wyczyszczono podpisy: {(all ? "wszystkie skrzynki" : mailbox)}. Kopia zapasowa zapisana."));
+}

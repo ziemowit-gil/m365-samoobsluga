@@ -41,6 +41,8 @@ param(
     [string]$UserPrincipalName,
     [string]$AppId,
     [string]$CertificateThumbprint,
+    # Linux: plik .pfx; hasło z zmiennej środowiskowej M365_EXO_CERT_PASSWORD (nie w argumentach procesu).
+    [string]$CertificateFilePath,
     [string]$Organization,
 
     # Pomija łączenie, gdy sesja Exchange Online jest już otwarta.
@@ -61,7 +63,10 @@ if (-not $SkipConnect) {
     }
     Import-Module ExchangeOnlineManagement
     $conn = @{ ShowBanner = $false }
-    if ($AppId -and $CertificateThumbprint -and $Organization) {
+    if ($AppId -and $CertificateFilePath -and $Organization) {
+        $conn += @{ AppId = $AppId; CertificateFilePath = $CertificateFilePath; Organization = $Organization }
+        if ($env:M365_EXO_CERT_PASSWORD) { $conn += @{ CertificatePassword = (ConvertTo-SecureString -String $env:M365_EXO_CERT_PASSWORD -AsPlainText -Force) } }
+    } elseif ($AppId -and $CertificateThumbprint -and $Organization) {
         $conn += @{ AppId = $AppId; CertificateThumbprint = $CertificateThumbprint; Organization = $Organization }
     } elseif ($UserPrincipalName) {
         $conn += @{ UserPrincipalName = $UserPrincipalName }
