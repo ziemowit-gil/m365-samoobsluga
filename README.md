@@ -134,6 +134,14 @@ Testy: `dotnet test`.
 
 ## Ubuntu: uruchomienie i usługa systemowa
 
+Najkrótsza droga to skrypt `scripts/install-ubuntu.sh`. Instaluje .NET 10, publikuje aplikację do `/opt/m365-samoobsluga`, zakłada użytkownika systemowego i usługę systemd, tworzy pusty plik na sekrety `/etc/m365-samoobsluga.env` (prawa 600) i opcjonalnie dodaje konfigurację nginx. Można go uruchamiać ponownie, żeby zaktualizować aplikację (`App_Data` zostaje):
+
+```bash
+sudo ./scripts/install-ubuntu.sh --admin twoj.login@feer.org.pl --domain poczta.example.org
+```
+
+Ręczna wersja tych kroków jest poniżej.
+
 Instalacja .NET 10 (skrypt Microsoftu działa na każdej wersji Ubuntu):
 
 ```bash
