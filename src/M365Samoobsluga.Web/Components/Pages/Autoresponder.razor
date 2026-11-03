@@ -1,0 +1,74 @@
+@page "/autoresponder"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IAutoReplyService Svc
+@inject UiGuard Guard
+<PageTitle>Autoresponder · Samoobsługa poczty</PageTitle>
+<h1>Autoresponder (odpowiedź poza biurem)</h1>
+@if (loading) { <p role="status">Wczytywanie ustawień…</p> }
+else
+{
+<Status Error="error" Success="ok" />
+<EditForm Model="m" OnSubmit="Save" FormName="autoresponder">
+    <div class="field check">
+        <input id="enabled" type="checkbox" @bind="m.Enabled" />
+        <label for="enabled">Włącz automatyczne odpowiedzi</label>
+    </div>
+    <fieldset>
+        <legend>Termin (opcjonalnie)</legend>
+        <p class="hint" id="dh">Zostaw puste, aby odpowiedzi działały do ręcznego wyłączenia. Wpisz obie daty, aby ustawić termin. Strefa czasowa: @m.TimeZoneId.</p>
+        <div class="field"><label for="od">Od</label><input id="od" type="datetime-local" aria-describedby="dh" @bind="m.StartLocal" /></div>
+        <div class="field"><label for="do">Do</label><input id="do" type="datetime-local" aria-describedby="dh" @bind="m.EndLocal" /></div>
+    </fieldset>
+    <div class="field">
+        <label for="int">Odpowiedź dla osób z organizacji</label>
+        <textarea id="int" @bind="m.InternalMessage" maxlength="4000"></textarea>
+    </div>
+    <div class="field">
+        <label for="aud">Odpowiedzi dla osób spoza organizacji</label>
+        <select id="aud" @bind="m.Audience">
+            <option value="None">Nie odpowiadaj</option>
+            <option value="ContactsOnly">Tylko moim kontaktom</option>
+            <option value="All">Wszystkim</option>
+        </select>
+    </div>
+    <div class="field">
+        <label for="ext">Odpowiedź dla osób spoza organizacji</label>
+        <textarea id="ext" @bind="m.ExternalMessage" maxlength="4000"></textarea>
+    </div>
+    <button type="submit" disabled="@busy">Zapisz</button>
+</EditForm>
+}
+@code {
+    sealed class Form
+    {
+        public bool Enabled { get; set; }
+        public DateTime? StartLocal { get; set; }
+        public DateTime? EndLocal { get; set; }
+        public string TimeZoneId { get; set; } = "Europe/Warsaw";
+        public string InternalMessage { get; set; } = "";
+        public string ExternalMessage { get; set; } = "";
+        public string Audience { get; set; } = "None";
+    }
+    Form m = new();
+    bool loading = true, busy; string? error, ok;
+
+    protected override async Task OnInitializedAsync()
+    {
+        error = await Guard.RunAsync(async () =>
+        {
+            var s = await Svc.GetAsync();
+            m = new Form { Enabled = s.Enabled, StartLocal = s.StartLocal, EndLocal = s.EndLocal, TimeZoneId = s.TimeZoneId,
+                           InternalMessage = s.InternalMessage, ExternalMessage = s.ExternalMessage, Audience = s.ExternalAudience.ToString() };
+        });
+        loading = false;
+    }
+    async Task Save()
+    {
+        busy = true; ok = null;
+        var s = new AutoReplySettings(m.Enabled, m.StartLocal, m.EndLocal, m.TimeZoneId, m.InternalMessage, m.ExternalMessage, Enum.Parse<AutoReplyAudience>(m.Audience));
+        error = await Guard.RunAsync(() => Svc.SaveAsync(s));
+        if (error is null) ok = m.Enabled ? "Autoresponder zapisany i włączony." : "Autoresponder wyłączony.";
+        busy = false;
+    }
+}

@@ -1,0 +1,32 @@
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider Auth
+
+<a class="skip-link" href="#tresc">Przejdź do treści</a>
+<header class="site">
+    <strong>Samoobsługa poczty Microsoft 365</strong>
+    <AuthorizeView>
+        <Authorized>
+            <span>Zalogowano: @context.User.FindFirst("preferred_username")?.Value
+                @if (!Mock) { <text> · </text><a href="MicrosoftIdentity/Account/SignOut">Wyloguj</a> }
+            </span>
+        </Authorized>
+    </AuthorizeView>
+</header>
+<nav aria-label="Główna nawigacja">
+    <ul>
+        <li><NavLink href="" Match="NavLinkMatch.All">Start</NavLink></li>
+        <li><NavLink href="aliasy">Aliasy</NavLink></li>
+        <li><NavLink href="haslo">Hasło</NavLink></li>
+        <li><NavLink href="stopka">Stopka</NavLink></li>
+        <li><NavLink href="autoresponder">Autoresponder</NavLink></li>
+        <li><NavLink href="przekierowanie">Przekierowanie</NavLink></li>
+    </ul>
+</nav>
+<main id="tresc" tabindex="-1">@Body</main>
+
+<div id="blazor-error-ui" data-nosnippet role="alert">
+    Wystąpił nieoczekiwany błąd. <a href=".">Odśwież stronę</a>
+    <span class="dismiss" role="button" tabindex="0" aria-label="Zamknij komunikat">✕</span>
+</div>
+
+@code { private bool Mock => Auth.GetType().Name.Contains("Mock"); }

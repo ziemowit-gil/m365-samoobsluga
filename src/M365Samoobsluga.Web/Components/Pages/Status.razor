@@ -1,0 +1,6 @@
+@if (Error is not null) { <p class="msg error" role="alert">@Error</p> }
+@if (Success is not null) { <p class="msg ok" role="status">@Success</p> }
+@code {
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public string? Success { get; set; }
+}

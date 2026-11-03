@@ -1,0 +1,44 @@
+@page "/stopka"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ISignatureService Svc
+@inject UiGuard Guard
+<PageTitle>Stopka · Samoobsługa poczty</PageTitle>
+<h1>Stopka wiadomości</h1>
+<p class="msg info">Microsoft nie udostępnia API do zapisu podpisu bezpośrednio w skrzynce. Przygotuj podpis tutaj, skopiuj go i wklej w Outlooku: Ustawienia → Konto → Podpisy.</p>
+@if (loading) { <p role="status">Wczytywanie…</p> }
+else
+{
+<Status Error="error" Success="ok" />
+<EditForm Model="m" OnSubmit="Save" FormName="stopka">
+    <div class="field">
+        <label for="txt">Podpis (zwykły tekst)</label>
+        <textarea id="txt" @bind="m.Text" maxlength="20000"></textarea>
+    </div>
+    <div class="field">
+        <label for="html">Podpis (HTML, opcjonalnie)</label>
+        <p class="hint" id="hh">Jeśli zostawisz puste, wersja HTML powstanie z tekstu.</p>
+        <textarea id="html" aria-describedby="hh" @bind="m.Html" maxlength="20000"></textarea>
+    </div>
+    <button type="submit" disabled="@busy">Zapisz szablon</button>
+</EditForm>
+<h2>Podgląd (tekst)</h2>
+<pre class="preview" aria-label="Podgląd podpisu">@m.Text</pre>
+}
+@code {
+    sealed class Form { public string Text { get; set; } = ""; public string Html { get; set; } = ""; }
+    Form m = new(); bool loading = true, busy; string? error, ok;
+    protected override async Task OnInitializedAsync()
+    {
+        error = await Guard.RunAsync(async () => { var s = await Svc.GetAsync(); m = new Form { Text = s.Text, Html = s.Html }; });
+        loading = false;
+    }
+    async Task Save()
+    {
+        busy = true; ok = null;
+        var html = string.IsNullOrWhiteSpace(m.Html) ? M365Samoobsluga.Core.Services.AutoReplyComposer.TextToHtml(m.Text) : m.Html;
+        error = await Guard.RunAsync(() => Svc.SaveAsync(new SignatureSet(html, m.Text)));
+        if (error is null) ok = "Szablon podpisu zapisany.";
+        busy = false;
+    }
+}

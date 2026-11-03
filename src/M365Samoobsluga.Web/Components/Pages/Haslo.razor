@@ -1,0 +1,29 @@
+@page "/haslo"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IPasswordService Svc
+@inject UiGuard Guard
+<PageTitle>Hasło · Samoobsługa poczty</PageTitle>
+<h1>Zmiana hasła</h1>
+<p>Hasło dotyczy całego konta Microsoft 365, nie tylko poczty. Obowiązują zasady organizacji (długość i złożoność). Aplikacja nie zapisuje haseł.</p>
+<Status Error="error" Success="ok" />
+<EditForm Model="m" OnSubmit="Save" FormName="haslo">
+    <div class="field"><label for="cur">Aktualne hasło</label><input id="cur" type="password" autocomplete="current-password" @bind="m.Current" /></div>
+    <div class="field"><label for="new">Nowe hasło</label><input id="new" type="password" autocomplete="new-password" @bind="m.New" /></div>
+    <div class="field"><label for="rep">Powtórz nowe hasło</label><input id="rep" type="password" autocomplete="new-password" @bind="m.Repeat" /></div>
+    <button type="submit" disabled="@busy">Zmień hasło</button>
+</EditForm>
+@code {
+    sealed class Form { public string Current { get; set; } = ""; public string New { get; set; } = ""; public string Repeat { get; set; } = ""; }
+    Form m = new(); bool busy; string? error, ok;
+    async Task Save()
+    {
+        ok = null;
+        if (m.New != m.Repeat) { error = "Nowe hasło i jego powtórzenie nie są takie same."; return; }
+        busy = true;
+        error = await Guard.RunAsync(() => Svc.ChangeAsync(new ChangePasswordRequest(m.Current, m.New)));
+        if (error is null) ok = "Hasło zostało zmienione. Przy następnym logowaniu użyj nowego hasła.";
+        m = new(); // czyścimy pola z hasłami
+        busy = false;
+    }
+}

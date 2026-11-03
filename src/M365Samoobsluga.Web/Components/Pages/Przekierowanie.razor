@@ -1,0 +1,40 @@
+@page "/przekierowanie"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IForwardingService Svc
+@inject UiGuard Guard
+<PageTitle>Przekierowanie · Samoobsługa poczty</PageTitle>
+<h1>Przekierowanie poczty</h1>
+<p class="msg info">Przekierowanie na adres poza organizacją może być zablokowane przez zasady bezpieczeństwa Microsoft 365. Wtedy zobaczysz komunikat o błędzie albo wiadomości nie dotrą.</p>
+@if (loading) { <p role="status">Wczytywanie ustawień…</p> }
+else
+{
+<Status Error="error" Success="ok" />
+<EditForm Model="m" OnSubmit="Save" FormName="przekierowanie">
+    <div class="field check"><input id="en" type="checkbox" @bind="m.Enabled" /><label for="en">Przekazuj wiadomości na inny adres</label></div>
+    <div class="field">
+        <label for="addr">Adres docelowy</label>
+        <p class="hint" id="ah">Na przykład imie@example.org.</p>
+        <input id="addr" type="email" inputmode="email" autocomplete="off" aria-describedby="ah" @bind="m.Address" />
+    </div>
+    <div class="field check"><input id="copy" type="checkbox" @bind="m.KeepCopy" /><label for="copy">Zostaw kopię w mojej skrzynce</label></div>
+    <p class="hint">Bez kopii wiadomości po przekazaniu trafiają do folderu Elementy usunięte.</p>
+    <button type="submit" disabled="@busy">Zapisz</button>
+</EditForm>
+}
+@code {
+    sealed class Form { public bool Enabled { get; set; } public string? Address { get; set; } public bool KeepCopy { get; set; } = true; }
+    Form m = new(); bool loading = true, busy; string? error, ok;
+    protected override async Task OnInitializedAsync()
+    {
+        error = await Guard.RunAsync(async () => { var s = await Svc.GetAsync(); m = new Form { Enabled = s.Enabled, Address = s.Address, KeepCopy = s.KeepCopy }; });
+        loading = false;
+    }
+    async Task Save()
+    {
+        busy = true; ok = null;
+        error = await Guard.RunAsync(() => Svc.SaveAsync(new ForwardingSettings(m.Enabled, m.Address, m.KeepCopy, null)));
+        if (error is null) ok = m.Enabled ? "Przekierowanie włączone." : "Przekierowanie wyłączone.";
+        busy = false;
+    }
+}
