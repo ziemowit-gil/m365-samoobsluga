@@ -15,6 +15,7 @@
 set -euo pipefail
 
 NAME="Samoobsługa poczty Microsoft 365"
+APP_ID=""
 BASE_URL=""
 CERT=""
 WRITE_ENV=""
@@ -31,6 +32,7 @@ usage() {
   cat <<EOF
 Użycie: $0 --base-url <https://adres-aplikacji> [opcje]
   --base-url <adres>        adres aplikacji, np. https://ms365webpanel.feer.org.pl lub http://localhost:30375 (wymagane)
+  --app-id <Client ID>      użyj istniejącej rejestracji (zamiast szukać po nazwie lub tworzyć nową)
   --name <nazwa>            nazwa rejestracji (domyślnie: $NAME)
   --cert <plik.pem|.cer>    dodaj certyfikat zamiast tworzyć sekret klienta (zalecane na produkcji)
   --secret-years <n>        ważność sekretu w latach (domyślnie $SECRET_YEARS)
@@ -45,6 +47,7 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --base-url) BASE_URL="${2:-}"; shift 2 ;;
+    --app-id) APP_ID="${2:-}"; shift 2 ;;
     --name) NAME="${2:-}"; shift 2 ;;
     --cert) CERT="${2:-}"; shift 2 ;;
     --secret-years) SECRET_YEARS="${2:-}"; shift 2 ;;
@@ -62,6 +65,7 @@ done
 if [[ "$BASE_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?/?$ || "$BASE_URL" =~ ^http://(localhost|127\.0\.0\.1)(:[0-9]+)?/?$ ]]; then :; else
   echo "Adres musi mieć postać https://host[:port] (http tylko dla localhost): $BASE_URL" >&2; exit 2
 fi
+[[ -z "$APP_ID" || "$APP_ID" =~ ^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$ ]] || { echo "--app-id: to nie jest poprawny Client ID (GUID)." >&2; exit 2; }
 [[ "$SECRET_YEARS" =~ ^[1-2]$ ]] || { echo "--secret-years: 1 albo 2." >&2; exit 2; }
 [[ -z "$CERT" || -f "$CERT" ]] || { echo "Nie znaleziono pliku certyfikatu: $CERT" >&2; exit 2; }
 BASE_URL="${BASE_URL%/}"
@@ -70,7 +74,7 @@ REDIRECT_URIS=("$BASE_URL/signin-oidc" "$BASE_URL/signout-callback-oidc")
 LOGOUT_URL="$BASE_URL/signout-oidc"
 
 echo "Plan:"
-echo "  Rejestracja:        $NAME (jedna dzierżawa)"
+if [[ -n "$APP_ID" ]]; then echo "  Rejestracja:        istniejąca, Client ID $APP_ID"; else echo "  Rejestracja:        $NAME (jedna dzierżawa; szukana po nazwie, a gdy jej nie ma, tworzona)"; fi
 echo "  Redirect URI (Web): ${REDIRECT_URIS[*]}"
 echo "  Front-channel logout URL: $LOGOUT_URL"
 echo "  Uprawnienia Graph (delegowane): ${SCOPES[*]}"
@@ -89,7 +93,11 @@ read -r -p "Zmienić rejestrację aplikacji w tej dzierżawie? [t/N] " ans
 [[ "$ans" =~ ^[tTyY]$ ]] || { echo "Przerwano."; exit 1; }
 
 echo "==> Rejestracja aplikacji"
-APP_ID="$(az ad app list --display-name "$NAME" --query "[0].appId" -o tsv)"
+if [[ -n "$APP_ID" ]]; then
+  az ad app show --id "$APP_ID" >/dev/null 2>&1 || { echo "Nie znaleziono aplikacji $APP_ID w tej dzierżawie." >&2; exit 1; }
+else
+  APP_ID="$(az ad app list --display-name "$NAME" --query "[0].appId" -o tsv)"
+fi
 if [[ -z "$APP_ID" ]]; then
   APP_ID="$(az ad app create --display-name "$NAME" --sign-in-audience AzureADMyOrg --web-redirect-uris "${REDIRECT_URIS[@]}" --query appId -o tsv)"
   echo "    utworzono, Client ID: $APP_ID"
