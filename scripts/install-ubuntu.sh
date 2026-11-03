@@ -110,6 +110,7 @@ if [[ -n "$DOMAIN" ]]; then
   cat > "/etc/nginx/sites-available/$SERVICE" <<EOF
 server {
     listen 80;
+    listen [::]:80;
     server_name $DOMAIN;
 
     location / {
