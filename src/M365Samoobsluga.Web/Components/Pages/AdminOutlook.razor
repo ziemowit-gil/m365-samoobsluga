@@ -26,8 +26,11 @@ else
     <textarea id="script" readonly rows="14">@ScriptFor()</textarea>
     <p>
         <button type="button" @onclick="CopyScript" disabled="@(limitError is not null)">Kopiuj skrypt</button>
+        <button type="button" class="secondary" @onclick="DownloadScript" disabled="@(limitError is not null)">Pobierz skrypt (.ps1)</button>
+        <button type="button" class="secondary" @onclick="DownloadHtml" disabled="@(limitError is not null)">Pobierz szablon HTML</button>
     </p>
     <div role="status">@copied</div>
+    <p>Zamiast wklejać skrypt możesz pobrać szablon HTML i uruchomić gotowy skrypt <code>scripts/Set-StopkaRule.ps1</code> z repozytorium (obsługuje <code>-WhatIf</code>, tryb Audit i Enforce oraz usunięcie reguły).</p>
     <h2>Jak wdrożyć</h2>
     <ol>
         <li>Zainstaluj moduł: <code>Install-Module ExchangeOnlineManagement</code>.</li>
@@ -56,5 +59,7 @@ else
     }
     protected override void OnParametersSet() { }
     string ScriptFor() => limitError is null ? ExchangeRuleBuilder.BuildScript(html, mode) : "";
+    async Task DownloadScript() => await Js.InvokeVoidAsync("samoobsluga.download", "stopka-regula.ps1", ExchangeRuleBuilder.BuildScript(html, mode), "text/plain");
+    async Task DownloadHtml() => await Js.InvokeVoidAsync("samoobsluga.download", "stopka-szablon.html", html, "text/html");
     async Task CopyScript() => copied = await Js.InvokeAsync<bool>("samoobsluga.copyText", ExchangeRuleBuilder.BuildScript(html, mode)) ? "Skrypt skopiowany." : "Nie udało się skopiować. Zaznacz tekst skryptu i skopiuj ręcznie.";
 }
