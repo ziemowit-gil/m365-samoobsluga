@@ -207,6 +207,10 @@ location / {
 
 Adresy w Entra podajesz wtedy z domeną: `https://twoja-domena/signin-oidc` i pozostałe z tabeli wyżej.
 
+### Mikrus i Cloudflare
+
+Na serwerze Mikrus (wiki.mikr.us) domenę z Cloudflare podpina się rekordem AAAA na adres IPv6 serwera, z włączonym proxy, a serwer WWW musi nasłuchiwać na porcie 80 po IPv6. Skrypt tak konfiguruje nginx. Mikrus zaleca tryb SSL/TLS Flexible, ale aplikacja obsługuje hasła i metody logowania, więc połączenie Cloudflare z serwerem lepiej szyfrować: zainstaluj certyfikat certbotem i ustaw Full (strict). Nginx przekazuje aplikacji schemat z nagłówka `X-Forwarded-Proto` od Cloudflare, więc adresy logowania są poprawne w obu trybach. Pętla przekierowań w trybie Flexible bierze się z tego, że przekierowanie na https robią jednocześnie Cloudflare i serwer; wtedy włącz Always Use HTTPS w Cloudflare i nie przekierowuj na https w nginx. Porty 20000+ID i 30000+ID z panelu Mikrusa są bezpośrednio otwarte, ale bez https, więc Entra ich nie przyjmie.
+
 ## Bezpieczeństwo
 
 - Aplikacja nie przechowuje haseł ani tokenów poza mechanizmami frameworka (ciasteczko sesji, pamięciowy cache tokenów).

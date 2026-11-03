@@ -114,6 +114,13 @@ if [[ -n "$DOMAIN" ]]; then
   echo "==> nginx dla $DOMAIN"
   apt-get install -y -qq nginx >/dev/null
   cat > "/etc/nginx/sites-available/$SERVICE" <<EOF
+# Schemat widziany przez klienta: za Cloudflare (tryb Flexible lub Full) nagłówek X-Forwarded-Proto ma wartość https,
+# mimo że połączenie Cloudflare z serwerem może iść po http. Bez tego logowanie Entra zbudowałoby adres http://.
+map \$http_x_forwarded_proto \$m365_proto {
+    default \$scheme;
+    https   https;
+}
+
 server {
     listen 80;
     listen [::]:80;
@@ -126,7 +133,7 @@ server {
         proxy_set_header Connection "upgrade";
         proxy_set_header Host \$host;
         proxy_set_header X-Forwarded-For \$remote_addr;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Proto \$m365_proto;
         proxy_read_timeout 100s;
     }
 }
