@@ -25,7 +25,7 @@ public sealed class MockMailbox
     public string[] Domains = ["feer.org.pl", "feer.pl"];
     public AutoReplySettings AutoReply = new(false, null, null, "Europe/Warsaw", "", "", AutoReplyAudience.All);
     public ForwardingSettings Forwarding = new(false, null, true, null);
-    public SignatureSet Signature = new("", "");
+    public SignaturePerson Person = new("Użytkownik Demo", "", "", "demo@feer.org.pl");
 }
 
 public sealed class MockAliasService(MockMailbox m) : IAliasService
@@ -76,6 +76,29 @@ public sealed class MockPasswordService : IPasswordService
 }
 public sealed class MockSignatureService(MockMailbox m) : ISignatureService
 {
-    public Task<SignatureSet> GetAsync(CancellationToken ct = default) => Task.FromResult(m.Signature);
-    public Task SaveAsync(SignatureSet s, CancellationToken ct = default) { m.Signature = s; return Task.CompletedTask; }
+    public Task<SignaturePerson> GetAsync(CancellationToken ct = default) => Task.FromResult(m.Person);
+    public Task SaveAsync(string title, string phone, CancellationToken ct = default)
+    {
+        var err = SignatureRenderer.ValidateTitle(title) ?? SignatureRenderer.ValidatePhone(phone);
+        if (err is not null) throw new UserFacingException(err);
+        m.Person = m.Person with { Title = title.Trim(), Phone = phone.Trim() }; return Task.CompletedTask;
+    }
+    public Task<SignaturePerson> SyncFromDirectoryAsync(CancellationToken ct = default)
+    { m.Person = m.Person with { Title = "Koordynatorka wolontariatu", Phone = "+48 600 100 200" }; return Task.FromResult(m.Person); }
+}
+
+public sealed class MockTwoFactorService : ITwoFactorService
+{
+    private readonly List<AuthMethod> _m = [
+        new("pw", AuthMethodKind.Password, "Hasło", null),
+        new("a1", AuthMethodKind.MicrosoftAuthenticator, "Telefon służbowy", new DateTimeOffset(2026, 3, 2, 10, 0, 0, TimeSpan.Zero)),
+        new("a2", AuthMethodKind.MicrosoftAuthenticator, "Stary telefon", new DateTimeOffset(2024, 9, 12, 10, 0, 0, TimeSpan.Zero)),
+        new("ph", AuthMethodKind.Phone, "Numer kończący się na 21", null)];
+    public Task<IReadOnlyList<AuthMethod>> ListAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<AuthMethod>>(_m.ToList());
+    public Task RemoveAuthenticatorAsync(string id, CancellationToken ct = default)
+    {
+        var t = _m.FirstOrDefault(x => x.Id == id) ?? throw new UserFacingException("Nie znaleziono tej metody logowania.");
+        if (TwoFactorPolicy.CannotRemoveReason(t, _m) is { } r) throw new UserFacingException(r);
+        _m.Remove(t); return Task.CompletedTask;
+    }
 }

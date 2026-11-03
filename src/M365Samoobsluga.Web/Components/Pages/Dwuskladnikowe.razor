@@ -1,0 +1,50 @@
+@page "/2fa"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ITwoFactorService Svc
+@inject UiGuard Guard
+<PageTitle>Weryfikacja dwuetapowa · Samoobsługa poczty</PageTitle>
+<h1>Weryfikacja dwuetapowa (2FA)</h1>
+<p>Tu zobaczysz, czym potwierdzasz logowanie do konta. Urządzenia z Microsoft Authenticator możesz stąd usunąć, np. po wymianie telefonu.</p>
+<p class="msg info">Nowe metody (aplikację, telefon, klucz) dodasz na stronie Microsoftu: <a href="https://aka.ms/mysecurityinfo" target="_blank" rel="noopener noreferrer">Moje metody logowania<span class="sr-only"> (otwiera się w nowej karcie)</span></a>. Microsoft nie pozwala robić tego z innych aplikacji. Przy usuwaniu może poprosić o ponowne potwierdzenie logowania.</p>
+@if (loading) { <p role="status">Wczytywanie…</p> }
+else
+{
+<Status Error="error" Success="ok" />
+@if (methods.Count == 0) { <p>Brak zarejestrowanych metod.</p> }
+else
+{
+    <table>
+        <caption class="sr-only">Zarejestrowane metody logowania</caption>
+        <thead><tr><th scope="col">Rodzaj</th><th scope="col">Nazwa</th><th scope="col">Dodano</th><th scope="col">Działanie</th></tr></thead>
+        <tbody>
+        @foreach (var m in methods)
+        {
+            <tr>
+                <td>@TwoFactorPolicy.KindName(m.Kind)</td>
+                <td>@m.Label</td>
+                <td>@(m.CreatedAt?.ToString("d.MM.yyyy") ?? "brak danych")</td>
+                <td>
+                    @if (m.Kind == AuthMethodKind.MicrosoftAuthenticator)
+                    {
+                        <button type="button" class="secondary" disabled="@busy" aria-label="Usuń urządzenie @m.Label" @onclick="() => Remove(m)">Usuń</button>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+}
+@code {
+    IReadOnlyList<AuthMethod> methods = []; bool loading = true, busy; string? error, ok;
+    protected override async Task OnInitializedAsync() { await Load(); loading = false; }
+    async Task Load() => error = await Guard.RunAsync(async () => methods = await Svc.ListAsync());
+    async Task Remove(AuthMethod m)
+    {
+        busy = true; ok = null;
+        error = await Guard.RunAsync(() => Svc.RemoveAuthenticatorAsync(m.Id));
+        if (error is null) { ok = "Urządzenie zostało usunięte."; await Load(); }
+        busy = false;
+    }
+}

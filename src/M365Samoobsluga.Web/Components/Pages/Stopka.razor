@@ -2,43 +2,61 @@
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject ISignatureService Svc
+@inject SignatureTemplate Template
+@inject IJSRuntime Js
 @inject UiGuard Guard
 <PageTitle>Stopka · Samoobsługa poczty</PageTitle>
 <h1>Stopka wiadomości</h1>
-<p class="msg info">Microsoft nie udostępnia API do zapisu podpisu bezpośrednio w skrzynce. Przygotuj podpis tutaj, skopiuj go i wklej w Outlooku: Ustawienia → Konto → Podpisy.</p>
+<p>Stopka powstaje według wzoru organizacji. Ty ustawiasz tylko stanowisko i telefon. Imię, nazwisko i adres e-mail pochodzą z Twojego konta.</p>
+<p class="msg info">Microsoft nie pozwala zapisać podpisu w skrzynce z zewnętrznej aplikacji. Skopiuj gotową stopkę i wklej ją w Outlooku: Ustawienia → Konto → Podpisy.</p>
 @if (loading) { <p role="status">Wczytywanie…</p> }
 else
 {
 <Status Error="error" Success="ok" />
 <EditForm Model="m" OnSubmit="Save" FormName="stopka">
+    <div class="field"><label for="tt">Stanowisko</label><input id="tt" type="text" maxlength="100" @bind="m.Title" /></div>
     <div class="field">
-        <label for="txt">Podpis (zwykły tekst)</label>
-        <textarea id="txt" @bind="m.Text" maxlength="20000"></textarea>
+        <label for="ph">Telefon</label>
+        <p class="hint" id="phh">Na przykład +48 600 100 200. Zostaw puste, jeśli nie chcesz podawać numeru.</p>
+        <input id="ph" type="text" inputmode="tel" autocomplete="tel" aria-describedby="phh" @bind="m.Phone" />
     </div>
-    <div class="field">
-        <label for="html">Podpis (HTML, opcjonalnie)</label>
-        <p class="hint" id="hh">Jeśli zostawisz puste, wersja HTML powstanie z tekstu.</p>
-        <textarea id="html" aria-describedby="hh" @bind="m.Html" maxlength="20000"></textarea>
-    </div>
-    <button type="submit" disabled="@busy">Zapisz szablon</button>
+    <button type="submit" disabled="@busy">Zapisz</button>
+    <button type="button" class="secondary" disabled="@busy" @onclick="Sync">Pobierz z Microsoft 365</button>
 </EditForm>
-<h2>Podgląd (tekst)</h2>
-<pre class="preview" aria-label="Podgląd podpisu">@m.Text</pre>
+<h2>Podgląd</h2>
+<div class="preview" role="region" aria-label="Podgląd stopki">@((MarkupString)Html)</div>
+<p>
+    <button type="button" @onclick="CopyHtml">Kopiuj stopkę</button>
+    <button type="button" class="secondary" @onclick="CopyText">Kopiuj wersję tekstową</button>
+</p>
+<div role="status">@copied</div>
 }
 @code {
-    sealed class Form { public string Text { get; set; } = ""; public string Html { get; set; } = ""; }
-    Form m = new(); bool loading = true, busy; string? error, ok;
+    sealed class Form { public string Title { get; set; } = ""; public string Phone { get; set; } = ""; }
+    Form m = new(); SignaturePerson person = new("", "", "", ""); bool loading = true, busy; string? error, ok, copied;
+    SignaturePerson Current => person with { Title = m.Title.Trim(), Phone = m.Phone.Trim() };
+    string Html => SignatureRenderer.RenderHtml(Template.Org, Template.Design, Current);
+    string Text => SignatureRenderer.RenderText(Template.Org, Template.Design, Current);
+
     protected override async Task OnInitializedAsync()
     {
-        error = await Guard.RunAsync(async () => { var s = await Svc.GetAsync(); m = new Form { Text = s.Text, Html = s.Html }; });
+        error = await Guard.RunAsync(async () => { person = await Svc.GetAsync(); m = new Form { Title = person.Title, Phone = person.Phone }; });
         loading = false;
     }
     async Task Save()
     {
-        busy = true; ok = null;
-        var html = string.IsNullOrWhiteSpace(m.Html) ? M365Samoobsluga.Core.Services.AutoReplyComposer.TextToHtml(m.Text) : m.Html;
-        error = await Guard.RunAsync(() => Svc.SaveAsync(new SignatureSet(html, m.Text)));
-        if (error is null) ok = "Szablon podpisu zapisany.";
+        busy = true; ok = null; copied = null;
+        error = await Guard.RunAsync(() => Svc.SaveAsync(m.Title, m.Phone));
+        if (error is null) ok = "Dane do stopki zapisane.";
         busy = false;
     }
+    async Task Sync()
+    {
+        busy = true; ok = null; copied = null;
+        error = await Guard.RunAsync(async () => { person = await Svc.SyncFromDirectoryAsync(); m = new Form { Title = person.Title, Phone = person.Phone }; });
+        if (error is null) ok = "Pobrano stanowisko i telefon z Microsoft 365.";
+        busy = false;
+    }
+    async Task CopyHtml() => copied = await Js.InvokeAsync<bool>("samoobsluga.copyHtml", Html, Text) ? "Stopka skopiowana. Wklej ją w ustawieniach podpisu w Outlooku." : "Nie udało się skopiować. Zaznacz podgląd i skopiuj ręcznie.";
+    async Task CopyText() => copied = await Js.InvokeAsync<bool>("samoobsluga.copyText", Text) ? "Wersja tekstowa skopiowana." : "Nie udało się skopiować.";
 }

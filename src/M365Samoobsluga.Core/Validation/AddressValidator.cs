@@ -22,7 +22,7 @@ public static class AddressValidator
         if (lp.Contains('@')) return ValidationResult.Fail("Wpisz tylko część przed znakiem @; domenę wybierz z listy.");
         if (lp.Length > 64) return ValidationResult.Fail("Nazwa aliasu może mieć najwyżej 64 znaki.");
         if (!LocalPart.IsMatch(lp))
-            return ValidationResult.Fail("Nazwa aliasu może zawierać tylko litery a–z bez polskich znaków, cyfry oraz pojedyncze kropki, myślniki lub podkreślniki w środku.");
+            return ValidationResult.Fail("Nazwa aliasu może zawierać tylko litery a-z bez polskich znaków, cyfry oraz pojedyncze kropki, myślniki lub podkreślniki w środku.");
         if (dom.Length == 0) return ValidationResult.Fail("Wybierz domenę aliasu.");
         if (!verifiedDomains.Contains(dom, StringComparer.OrdinalIgnoreCase))
             return ValidationResult.Fail("Ta domena nie jest zweryfikowana w organizacji. Wybierz domenę z listy.");
@@ -50,7 +50,7 @@ public static class AddressValidator
             return ValidationResult.Fail("Część adresu przed znakiem @ zawiera niedozwolone znaki.");
         if (!Domain.IsMatch(dom)) return ValidationResult.Fail("Domena adresu e-mail jest nieprawidłowa.");
         if (ownAddresses.Contains(a, StringComparer.OrdinalIgnoreCase))
-            return ValidationResult.Fail("Nie można przekierować poczty na własny adres — wiadomości krążyłyby w pętli.");
+            return ValidationResult.Fail("Nie można przekierować poczty na własny adres, bo wiadomości krążyłyby w pętli.");
         if (blockedDomains?.Contains(dom, StringComparer.OrdinalIgnoreCase) == true)
             return ValidationResult.Fail("Przekierowanie na tę domenę jest zablokowane przez zasady organizacji.");
         return ValidationResult.Ok(a);

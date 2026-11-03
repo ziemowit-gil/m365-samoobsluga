@@ -1,87 +1,123 @@
 # Samoobsługa poczty Microsoft 365
 
-Aplikacja webowa (ASP.NET Core Blazor Server, .NET 10) dla wolontariuszy i współpracowników organizacji. Zalogowana osoba zarządza **wyłącznie własnym kontem** w Microsoft 365. Interfejs jest po polsku i zgodny z WCAG (etykiety pól, obsługa klawiatury, link „Przejdź do treści”, kontrast ≥ 4,5:1, komunikaty `role="status"` i `role="alert"`).
+Aplikacja webowa dla wolontariuszy i współpracowników organizacji. Zalogowana osoba zmienia ustawienia tylko własnego konta Microsoft 365: aliasy, hasło, weryfikację dwuetapową, stopkę, autoresponder i przekierowanie poczty. Interfejs jest po polsku. Pola mają etykiety, całość działa z klawiatury, kontrast tekstu wynosi co najmniej 4,5:1, a komunikaty czytają się czytnikiem ekranu.
 
-## Funkcje i co naprawdę da się zrobić (stan na 2026-11-03)
+To Blazor Server na .NET 10 z logowaniem przez Entra ID. Tokeny zostają na serwerze, a przeglądarka dostaje tylko ciasteczko sesji. Tożsamość zawsze pochodzi z tokenu, nigdy z formularza, więc nie da się zmienić cudzej skrzynki.
 
-Zakres zbadano w dokumentacji Microsoft Learn. Nic nie jest zgadywane: tam, gdzie Microsoft nie daje wspieranego API, aplikacja tego nie udaje.
+## Co aplikacja robi i czego nie może
 
-| Funkcja | Mechanizm | Uprawnienie delegowane | Uwagi |
-|---|---|---|---|
-| Autoresponder | `PATCH /me/mailboxSettings` (`automaticRepliesSetting`), Graph v1.0 | `MailboxSettings.ReadWrite` | Osobny tekst wewnętrzny i zewnętrzny, termin od–do (tylko przyszłość), odbiorcy zewnętrzni: nikt / kontakty / wszyscy. Daty przeliczane ze strefy skrzynki na UTC. |
-| Przekierowanie | `POST/PATCH/DELETE /me/mailFolders/inbox/messageRules`, akcja `forwardTo` (+ `delete` gdy bez kopii) | `MailboxSettings.ReadWrite` | To reguła skrzynki. Aplikacja zarządza tylko regułą o nazwie „Samoobsługa FEER: przekierowanie”. Polityki Exchange Online mogą blokować przekierowanie na adresy zewnętrzne. |
-| Zmiana hasła | `POST /me/changePassword`, Graph v1.0 | `User-PasswordProfile.ReadWrite.All` | Jedyne uprawnienie podane w dokumentacji dla tego endpointu. Wymaga **zgody administratora** na zakres, ale `/me` działa wyłącznie na koncie zalogowanego użytkownika i nie wymaga roli admina. Polityka haseł jest egzekwowana przez Entra ID. |
-| Aliasy: odczyt | `GET /me?$select=proxyAddresses`, `GET /organization` (zweryfikowane domeny z możliwością poczty) | `User.Read` | Dla `User.Read` organizacja zwraca `id`, `displayName`, `verifiedDomains`. |
-| Aliasy: zapis | **Brak w Graph**: `proxyAddresses` jest tylko do odczytu | n/d | Zapis robi się w Exchange Online (`Set-Mailbox -EmailAddresses @{add=...}`) z rolą Exchange. Aplikacja zapisuje **wniosek** w kolejce (`App_Data/alias-requests.jsonl`), który realizuje administrator. Podmiana na backend patrz niżej. |
-| Stopka | **Brak wspieranego API** (Microsoft: brak planów wsparcia roaming signatures w Graph; `SignatureHTML` nie działa po włączeniu roaming signatures; EWS wygasa 10.2026) | n/d | Aplikacja przechowuje szablon (tekst + HTML) i pokazuje go do skopiowania w Outlooku. Stopka serwerowa (reguła transportu) to zadanie administratora. |
+Sprawdziłem to w dokumentacji Microsoft Learn (stan na 3 listopada 2026). Gdzie Microsoft nie daje wspieranego API, aplikacja tego nie udaje.
 
-Źródła: [changePassword](https://learn.microsoft.com/graph/api/user-changepassword), [mailboxSettings](https://learn.microsoft.com/graph/api/user-update-mailboxsettings), [messageRules](https://learn.microsoft.com/graph/api/mailfolder-post-messagerules), [user (proxyAddresses)](https://learn.microsoft.com/graph/api/resources/user), [organization](https://learn.microsoft.com/graph/api/organization-get), [Set-Mailbox / aliasy](https://learn.microsoft.com/exchange/recipients-in-exchange-online/manage-user-mailboxes/add-or-remove-email-addresses).
+| Funkcja | Jak działa | Uprawnienie delegowane |
+|---|---|---|
+| Autoresponder | `PATCH /me/mailboxSettings`. Osobne teksty dla odbiorców wewnętrznych i zewnętrznych, termin od i do (tylko w przyszłości), odbiorcy zewnętrzni: nikt, kontakty albo wszyscy. | `MailboxSettings.ReadWrite` |
+| Przekierowanie | Reguła skrzynki (`/me/mailFolders/inbox/messageRules`, akcja `forwardTo`). Aplikacja zarządza tylko regułą o nazwie „Samoobsługa FEER: przekierowanie". Bez kopii wiadomość trafia dodatkowo do Elementów usuniętych. Polityka Exchange Online może blokować adresy zewnętrzne. | `MailboxSettings.ReadWrite` |
+| Hasło | `POST /me/changePassword`. Zasady haseł egzekwuje Entra ID. | `User-PasswordProfile.ReadWrite.All` (wymaga zgody administratora, ale endpoint działa tylko na własnym koncie) |
+| Weryfikacja 2FA | Lista metod: `GET /me/authentication/methods`. Usuwanie urządzeń Microsoft Authenticator: `DELETE /me/authentication/microsoftAuthenticatorMethods/{id}`. Po 10 minutach od logowania Microsoft może poprosić o ponowne MFA. Aplikacja nie pozwala usunąć ostatniej metody. | `UserAuthenticationMethod.ReadWrite` |
+| Aliasy, odczyt | `GET /me?$select=proxyAddresses` i `GET /organization` (zweryfikowane domeny z pocztą). | `User.Read` |
+| Aliasy, zapis | W Graph `proxyAddresses` jest tylko do odczytu. Zapis robi się w Exchange Online (`Set-Mailbox -EmailAddresses`), więc aplikacja zapisuje wniosek w `App_Data/alias-requests.jsonl`, a administrator go realizuje. | brak |
+| Stopka | Graph nie ma API do podpisów Outlooka (Microsoft nie planuje go dla roaming signatures). Aplikacja generuje stopkę według wzoru organizacji, a użytkownik kopiuje ją do Outlooka. | `User.Read` (stanowisko i telefon z profilu) |
 
-### Dlaczego Blazor Server + OpenID Connect
-Tokeny i sekrety zostają na serwerze (poufny klient, przepływ authorization code), przeglądarka dostaje tylko ciasteczko sesji. Tożsamość użytkownika pochodzi zawsze z tokenu, nigdy z formularza, więc nie da się ruszyć cudzej skrzynki. Dostęp do Graph idzie w imieniu użytkownika (delegowane zakresy), bez uprawnień aplikacyjnych do skrzynek wszystkich.
+Dodawania nowych metod 2FA nie da się zrobić z aplikacji: według dokumentacji użytkownik nie dodaje telefonu do własnego konta przez Graph. Strona 2FA odsyła do https://aka.ms/mysecurityinfo.
 
-### Aliasy: bezpieczna ścieżka do pełnej automatyzacji (nie zaimplementowana)
-Zapis aliasu wymaga uprawnień Exchange wyższych niż użytkownika. Zamiast dawać je użytkownikom, podmień `IAliasChangeExecutor` na wąski backend, który: przyjmuje wyłącznie UPN z zaufanego tokenu, waliduje alias (`AddressValidator`), ma uprawnienia ograniczone do pojedynczej skrzynki i zapisuje audyt. Szczegóły ograniczania uprawnień aplikacji w Exchange Online (RBAC for Applications) trzeba potwierdzić w bieżącej dokumentacji przed wdrożeniem. Do tego czasu obowiązuje tryb wniosków.
+Źródła: [changePassword](https://learn.microsoft.com/graph/api/user-changepassword), [mailboxSettings](https://learn.microsoft.com/graph/api/user-update-mailboxsettings), [messageRules](https://learn.microsoft.com/graph/api/mailfolder-post-messagerules), [metody uwierzytelniania](https://learn.microsoft.com/graph/api/authentication-list-methods), [usuwanie Authenticatora](https://learn.microsoft.com/graph/api/microsoftauthenticatorauthenticationmethod-delete), [dodawanie telefonu](https://learn.microsoft.com/graph/api/authentication-post-phonemethods), [user (proxyAddresses)](https://learn.microsoft.com/graph/api/resources/user), [organization](https://learn.microsoft.com/graph/api/organization-get), [aliasy w Exchange Online](https://learn.microsoft.com/exchange/recipients-in-exchange-online/manage-user-mailboxes/add-or-remove-email-addresses).
 
-## Architektura
+### Stopka według wzoru z SZO
+
+Generator działa jak moduł stopek w SZO: jeden szablon HTML dla wszystkich. Dane organizacji i wygląd ustawia administrator w konfiguracji (`Samoobsluga:Signature:Org` i `:Design`): nazwa, adres, NIP, KRS, strona, logo, czcionka, rozmiary, kolory, separator, wybór widocznych pól oraz treść promocyjna. Wygląd jest przycinany do dozwolonych wartości (czcionki z listy, kolory `#rrggbb`, logo tylko przez https), a treść promocyjna przechodzi przez listę dozwolonych znaczników. Użytkownik wpisuje tylko stanowisko i telefon albo pobiera je z profilu Microsoft 365. Imię, nazwisko i e-mail biorą się z konta. Aplikacja pokazuje podgląd i kopiuje stopkę do schowka w wersji HTML i tekstowej. Stopkę dopisywaną po stronie serwera, do każdej wysyłanej wiadomości, ustawia administrator regułą transportu w Exchange.
+
+### Aliasy: droga do pełnej automatyzacji
+
+Zapis aliasu wymaga uprawnień Exchange wyższych niż użytkownika. Zamiast je rozdawać, podmień `IAliasChangeExecutor` na wąski backend. Ma przyjmować UPN wyłącznie z zaufanego tokenu, walidować alias (`AddressValidator`) i mieć uprawnienia ograniczone do jednej skrzynki. Sposób ograniczania uprawnień aplikacji w Exchange Online trzeba potwierdzić w aktualnej dokumentacji przed wdrożeniem. Do tego czasu działa tryb wniosków. Backend łączący się z Exchange Online bez użytkownika też loguje się certyfikatem, tak jak ta aplikacja (patrz niżej).
+
+## Struktura
 
 ```
-src/M365Samoobsluga.Core    logika bez zależności od M365: walidacja aliasu/adresu, daty i treść autorespondera, audyt (dekoratory)
-src/M365Samoobsluga.Graph   usługi Microsoft Graph, mapowanie błędów na polski, kolejka wniosków o aliasy, magazyn szablonu stopki
-src/M365Samoobsluga.Web     UI Blazor (po polsku), logowanie Entra ID, konfiguracja, tryb demo (mocki)
+src/M365Samoobsluga.Core    logika bez zależności od M365: walidacja, daty i treść autorespondera, generator stopki, reguły 2FA, audyt
+src/M365Samoobsluga.Graph   usługi Microsoft Graph, mapowanie błędów na polski, kolejka wniosków o aliasy
+src/M365Samoobsluga.Web     interfejs Blazor, logowanie Entra ID, konfiguracja, tryb demo
 tests/M365Samoobsluga.Tests testy jednostkowe (xUnit)
 ```
 
-Audyt: każda zmiana trafia do logu jako JSON (`AUDYT {...}`: czas UTC, UPN, akcja, cel, powodzenie). Hasła, tokeny i treści wiadomości nie są logowane (przy zmianie hasła cel jest pusty). Skieruj log aplikacji do trwałego magazynu (np. plik, Application Insights).
+Każda zmiana trafia do dziennika jako JSON (`AUDYT {...}`: czas UTC, UPN, akcja, cel, wynik). Hasła, tokeny i treści wiadomości nie są logowane. Skieruj log do trwałego magazynu, na przykład do pliku albo Application Insights.
 
 ## Wymagania
-- .NET SDK 10 (`brew install dotnet` na macOS)
-- Tenant Microsoft 365 z Exchange Online i Entra ID, konto z rolą administratora do rejestracji aplikacji i udzielenia zgody
+
+- .NET SDK 10 (macOS: `brew install dotnet`)
+- Tenant Microsoft 365 z Exchange Online i Entra ID oraz konto, które może zarejestrować aplikację i udzielić zgody administratora
 
 ## Rejestracja aplikacji w Entra ID
-1. Entra admin center → **Applications → App registrations → New registration**. Typ konta: *Accounts in this organizational directory only* (single tenant).
-2. **Redirect URI** (platforma *Web*): `https://localhost:5001/signin-oidc` oraz adres produkcyjny `https://<host>/signin-oidc`. **Front-channel logout URL**: `https://<host>/signout-oidc`.
-3. **Certificates & secrets**: dodaj certyfikat (zalecane) albo sekret klienta. Wartość trzymaj poza repozytorium (patrz niżej).
-4. **API permissions → Microsoft Graph → Delegated**:
-   - `User.Read`: odczyt profilu i zweryfikowanych domen,
-   - `MailboxSettings.ReadWrite`: autoresponder i reguły przekierowania,
-   - `User-PasswordProfile.ReadWrite.All`: zmiana własnego hasła.
-5. **Grant admin consent** (przycisk w tym samym oknie), żeby użytkownicy nie widzieli próśb o zgodę. Zakres od hasła zawsze wymaga zgody administratora.
-6. Przypisz użytkowników (Enterprise applications → *Assignment required* = Tak), aby dostęp mieli tylko wskazani wolontariusze.
 
-## Konfiguracja (bez sekretów w repozytorium)
-`appsettings.json` zawiera puste `TenantId` i `ClientId`. Wartości i sekrety ustaw lokalnie przez User Secrets, na serwerze przez zmienne środowiskowe:
+1. W centrum administracyjnym Entra wybierz Applications → App registrations → New registration. Typ konta: tylko ten katalog (single tenant).
+2. Dodaj Redirect URI typu Web: `https://localhost:5001/signin-oidc` i adres produkcyjny `https://<host>/signin-oidc`. Front-channel logout URL: `https://<host>/signout-oidc`.
+3. W Certificates & secrets dodaj certyfikat (patrz niżej). Sekret klienta jest dopuszczalny tylko lokalnie.
+4. W API permissions dodaj uprawnienia delegowane Microsoft Graph: `User.Read`, `MailboxSettings.ReadWrite`, `User-PasswordProfile.ReadWrite.All`, `UserAuthenticationMethod.ReadWrite`.
+5. Kliknij Grant admin consent. Zakres hasła zawsze wymaga zgody administratora, a bez zgody użytkownicy zobaczą prośbę o nią przy logowaniu.
+6. W Enterprise applications ustaw Assignment required na Tak i przypisz wolontariuszy, którzy mają mieć dostęp.
+
+## Logowanie aplikacji certyfikatem
+
+Aplikacja wykazuje się przed Entra ID certyfikatem, a nie sekretem. Certyfikat można odnowić bez zmiany kodu, nie leży w pliku konfiguracji, a wyciek konfiguracji nie daje atakującemu tożsamości aplikacji.
+
+1. Wygeneruj certyfikat (samopodpisany wystarcza, ważność do dwóch lat) i wyeksportuj klucz publiczny jako `.cer`:
+   ```bash
+   openssl req -x509 -newkey rsa:3072 -sha256 -days 730 -nodes -subj "/CN=m365-samoobsluga" -keyout app.key -out app.cer
+   openssl pkcs12 -export -inkey app.key -in app.cer -out app.pfx
+   ```
+   Plików `app.key` i `app.pfx` nie dodawaj do repozytorium (`.gitignore` blokuje `*.pfx`). Przechowuj je w magazynie certyfikatów hosta albo w Key Vault.
+2. W rejestracji aplikacji wgraj `app.cer` w Certificates & secrets → Certificates.
+3. Wskaż certyfikat w konfiguracji (User Secrets lub zmienne środowiskowe):
+   ```bash
+   dotnet user-secrets set "AzureAd:ClientCredentials:0:SourceType" "StoreWithThumbprint"
+   dotnet user-secrets set "AzureAd:ClientCredentials:0:CertificateStorePath" "CurrentUser/My"
+   dotnet user-secrets set "AzureAd:ClientCredentials:0:CertificateThumbprint" "<odcisk-palca>"
+   ```
+   Inne rodzaje źródła: `KeyVault` (`KeyVaultUrl`, `KeyVaultCertificateName`) i `Path` (`CertificateDiskPath`, `CertificatePassword`).
+4. Przy starcie aplikacja sprawdza certyfikat i zapisuje w logu, ile dni mu zostało. Ostrzega, gdy zostało 30 dni lub mniej, gdy certyfikatu nie ma w magazynie oraz gdy na produkcji używasz sekretu klienta.
+5. Przy wymianie dodaj nowy certyfikat do rejestracji, zmień odcisk w konfiguracji, uruchom aplikację ponownie i dopiero wtedy usuń stary.
+
+## Konfiguracja
+
+`appsettings.json` ma puste `TenantId` i `ClientId`. Ustaw je lokalnie przez User Secrets, a na serwerze przez zmienne środowiskowe:
 
 ```bash
 cd src/M365Samoobsluga.Web
 dotnet user-secrets set "AzureAd:TenantId" "<id-tenanta>"
 dotnet user-secrets set "AzureAd:ClientId" "<id-aplikacji>"
-dotnet user-secrets set "AzureAd:ClientCredentials:0:SourceType" "ClientSecret"
-dotnet user-secrets set "AzureAd:ClientCredentials:0:ClientSecret" "<sekret>"
 ```
 
-Zmienne środowiskowe: `AzureAd__TenantId`, `AzureAd__ClientId`, `AzureAd__ClientCredentials__0__SourceType`, `AzureAd__ClientCredentials__0__ClientSecret`. W produkcji preferuj certyfikat z magazynu (SourceType `StoreWithThumbprint`) lub Key Vault.
+Zmienne środowiskowe mają postać `AzureAd__TenantId`, `AzureAd__ClientId`, `AzureAd__ClientCredentials__0__SourceType` i tak dalej. Sekretów i certyfikatów nie wpisuj do plików w repozytorium.
 
-Ustawienia `Samoobsluga:*`: `UseMockServices` (tryb demo), `DataDirectory` (szablony stopek), `AliasRequestQueuePath` (kolejka wniosków), `BlockedForwardingDomains`.
+Sekcja `Samoobsluga` zawiera: `UseMockServices` (tryb demo), `DataDirectory` (nadpisania stanowiska i telefonu), `AliasRequestQueuePath` (kolejka wniosków), `BlockedForwardingDomains` i `Signature` (wzór stopki).
 
 ## Uruchomienie lokalne
-Tryb demo (bez tenanta, dane w pamięci, **tylko do prób**; domyślnie włączony w środowisku Development):
+
+Tryb demo działa bez tenanta, trzyma dane w pamięci i nie wymaga logowania. Służy tylko do prób. W środowisku Development jest włączony domyślnie:
 
 ```bash
 dotnet run --project src/M365Samoobsluga.Web
 ```
 
-Z prawdziwym tenantem (po rejestracji i ustawieniu sekretów): `Samoobsluga__UseMockServices=false ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/M365Samoobsluga.Web`, potem wejdź na adres z konsoli. Testy: `dotnet test`.
+Z prawdziwym tenantem, po rejestracji aplikacji i ustawieniu poświadczeń:
+
+```bash
+Samoobsluga__UseMockServices=false ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/M365Samoobsluga.Web
+```
+
+Testy: `dotnet test`.
 
 ## Wdrożenie
-1. `dotnet publish src/M365Samoobsluga.Web -c Release -o publish`
-2. Uruchom na hoście z HTTPS (Azure App Service, kontener lub serwer z reverse proxy). Ustaw zmienne środowiskowe z sekcji Konfiguracja i `ASPNETCORE_ENVIRONMENT=Production`.
-3. Dodaj adres produkcyjny do Redirect URI w rejestracji aplikacji.
-4. Udostępnij zapisywalny katalog `App_Data` (szablony stopek, kolejka wniosków) i zadbaj o jego kopię zapasową.
-5. Przy wielu instancjach zamień pamięciowy cache tokenów (`AddInMemoryTokenCaches`) na rozproszony (`AddDistributedTokenCaches`) i użyj współdzielonego magazynu kluczy Data Protection.
+
+1. Zbuduj: `dotnet publish src/M365Samoobsluga.Web -c Release -o publish`.
+2. Uruchom na hoście z HTTPS (Azure App Service, kontener albo serwer z reverse proxy), z `ASPNETCORE_ENVIRONMENT=Production` i zmiennymi z sekcji Konfiguracja.
+3. Dodaj adres produkcyjny do Redirect URI.
+4. Udostępnij zapisywalny katalog `App_Data` i rób jego kopie zapasowe.
+5. Przy kilku instancjach zamień pamięciowy cache tokenów (`AddInMemoryTokenCaches`) na rozproszony (`AddDistributedTokenCaches`) i użyj wspólnego magazynu kluczy Data Protection.
 
 ## Bezpieczeństwo
-- Brak przechowywania haseł i tokenów poza mechanizmami frameworka (ciasteczko sesji, cache tokenów MSAL w pamięci).
-- Domyślna polityka autoryzacji wymaga zalogowania na każdej stronie; nagłówki `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`.
-- Hasła nie są logowane ani zapisywane, a pola formularza są czyszczone po próbie zmiany.
-- Alias i adres przekierowania są walidowane po stronie serwera (zweryfikowane domeny, ochrona przed pętlą przekierowania na własny adres).
+
+- Aplikacja nie przechowuje haseł ani tokenów poza mechanizmami frameworka (ciasteczko sesji, pamięciowy cache tokenów).
+- Każda strona wymaga zalogowania. Odpowiedzi mają nagłówki `X-Content-Type-Options`, `X-Frame-Options` i `Referrer-Policy`.
+- Hasła nie trafiają do logów, a pola formularza są czyszczone po próbie zmiany.
+- Alias i adres przekierowania są walidowane na serwerze: tylko zweryfikowane domeny, a przekierowanie na własny adres jest odrzucane jako pętla.
+- Numery telefonów w metodach 2FA są maskowane, widać tylko dwie ostatnie cyfry.

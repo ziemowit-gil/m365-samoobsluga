@@ -3,7 +3,7 @@ using Microsoft.Identity.Web;
 
 namespace M365Samoobsluga.Web.Auth;
 
-/// <summary>Wspólna obsługa błędów w UI: komunikaty po polsku, a gdy trzeba — ponowne logowanie/zgoda.</summary>
+/// <summary>Wspólna obsługa błędów w UI: komunikaty po polsku, a gdy trzeba także ponowne logowanie/zgoda.</summary>
 public sealed class UiGuard(IServiceProvider sp, ILogger<UiGuard> log)
 {
     /// <summary>Wykonuje operację; zwraca komunikat błędu po polsku albo null, gdy się udało.</summary>

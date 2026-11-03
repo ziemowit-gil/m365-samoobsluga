@@ -47,21 +47,4 @@ public class GraphServicesTests
         }
         finally { File.Delete(path); }
     }
-
-    [Fact]
-    public async Task Podpis_zapisuje_sie_osobno_dla_kazdego_uzytkownika()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        try
-        {
-            await new FileSignatureService(dir, new User("A")).SaveAsync(new SignatureSet("<p>A</p>", "A"));
-            Assert.Equal("A", (await new FileSignatureService(dir, new User("A")).GetAsync()).Text);
-            Assert.Equal("", (await new FileSignatureService(dir, new User("B")).GetAsync()).Text);
-        }
-        finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
-    }
-
-    [Fact]
-    public async Task Za_dlugi_podpis_odrzucony() =>
-        await Assert.ThrowsAsync<UserFacingException>(() => new FileSignatureService(Path.GetTempPath(), new User("A")).SaveAsync(new SignatureSet(new string('x', FileSignatureService.MaxLength + 1), "")));
 }

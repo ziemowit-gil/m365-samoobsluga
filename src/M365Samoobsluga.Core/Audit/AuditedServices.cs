@@ -46,6 +46,14 @@ public sealed class AuditedPasswordService(IPasswordService inner, IAuditLog log
 
 public sealed class AuditedSignatureService(ISignatureService inner, IAuditLog log, ICurrentUser user) : AuditBase(log, user), ISignatureService
 {
-    public Task<SignatureSet> GetAsync(CancellationToken ct = default) => inner.GetAsync(ct);
-    public Task SaveAsync(SignatureSet s, CancellationToken ct = default) => Run("stopka.zapis", null, () => inner.SaveAsync(s, ct));
+    public Task<SignaturePerson> GetAsync(CancellationToken ct = default) => inner.GetAsync(ct);
+    public Task SaveAsync(string title, string phone, CancellationToken ct = default) => Run("stopka.zapis", null, () => inner.SaveAsync(title, phone, ct));
+    public async Task<SignaturePerson> SyncFromDirectoryAsync(CancellationToken ct = default)
+    { SignaturePerson? r = null; await Run("stopka.synchronizacja", null, async () => r = await inner.SyncFromDirectoryAsync(ct)); return r!; }
+}
+
+public sealed class AuditedTwoFactorService(ITwoFactorService inner, IAuditLog log, ICurrentUser user) : AuditBase(log, user), ITwoFactorService
+{
+    public Task<IReadOnlyList<AuthMethod>> ListAsync(CancellationToken ct = default) => inner.ListAsync(ct);
+    public Task RemoveAuthenticatorAsync(string id, CancellationToken ct = default) => Run("2fa.usun.authenticator", id, () => inner.RemoveAuthenticatorAsync(id, ct));
 }

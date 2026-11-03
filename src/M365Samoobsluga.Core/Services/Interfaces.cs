@@ -29,7 +29,20 @@ public interface IPasswordService
 }
 public interface ISignatureService
 {
-    /// <summary>Szablon podpisu zapisany lokalnie dla użytkownika (bez zapisu do skrzynki — brak wspieranego API Graph).</summary>
-    Task<SignatureSet> GetAsync(CancellationToken ct = default);
-    Task SaveAsync(SignatureSet signature, CancellationToken ct = default);
+    /// <summary>Dane osoby do stopki: nadpisane przez użytkownika (stanowisko, telefon) albo z profilu Microsoft 365.</summary>
+    Task<SignaturePerson> GetAsync(CancellationToken ct = default);
+    /// <summary>Zapisuje stanowisko i telefon użytkownika (imię, nazwisko i e-mail zawsze z konta).</summary>
+    Task SaveAsync(string title, string phone, CancellationToken ct = default);
+    /// <summary>Pobiera stanowisko i telefon z profilu Microsoft 365 i zapisuje je jako własne ustawienia.</summary>
+    Task<SignaturePerson> SyncFromDirectoryAsync(CancellationToken ct = default);
+}
+
+/// <summary>Szablon stopki organizacji i wygląd, ustawiane przez administratora.</summary>
+public sealed record SignatureTemplate(SignatureOrg Org, SignatureDesign Design);
+
+public interface ITwoFactorService
+{
+    Task<IReadOnlyList<AuthMethod>> ListAsync(CancellationToken ct = default);
+    /// <summary>Usuwa urządzenie Microsoft Authenticator z własnego konta. Sprawdza <see cref="TwoFactorPolicy"/>.</summary>
+    Task RemoveAuthenticatorAsync(string methodId, CancellationToken ct = default);
 }
