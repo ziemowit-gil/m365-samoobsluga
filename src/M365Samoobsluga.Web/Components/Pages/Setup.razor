@@ -1,0 +1,45 @@
+@page "/setup"
+@layout SetupLayout
+@rendermode InteractiveServer
+@attribute [AllowAnonymous]
+@inject M365Samoobsluga.Web.Setup.SetupState State
+@inject IConfiguration Config
+@inject NavigationManager Nav
+<PageTitle>Konfiguracja · Samoobsługa poczty</PageTitle>
+<h1>Pierwsza konfiguracja</h1>
+@if (!State.Active)
+{
+    <p>Aplikacja jest już skonfigurowana. Dane logowania zmienisz na stronie <a href="admin/azure">Administrator: Azure</a>.</p>
+}
+else
+{
+    <p>Podaj identyfikatory z rejestracji aplikacji w Entra ID. Sekretów i certyfikatów tu nie wpisujesz, zostają w konfiguracji serwera (zob. README).</p>
+    <p class="msg info">Kod konfiguracji znajdziesz w logu serwera, w linii zaczynającej się od „Kod konfiguracji". Chroni przed zmianą ustawień przez przypadkową osobę.</p>
+    @if (error is not null) { <p class="msg error" role="alert">@error</p> }
+    @if (done) { <p class="msg ok" role="status">Zapisano. Uruchom aplikację ponownie, a potem zaloguj się kontem Microsoft 365.</p> }
+    else
+    {
+        <EditForm Model="m" OnSubmit="Save" FormName="setup">
+            <div class="field"><label for="tid">Tenant ID (Directory ID)</label><input id="tid" type="text" autocomplete="off" @bind="m.Tenant" /></div>
+            <div class="field"><label for="cid">Client ID (Application ID)</label><input id="cid" type="text" autocomplete="off" @bind="m.Client" /></div>
+            <div class="field"><label for="code">Kod konfiguracji</label><input id="code" type="text" autocomplete="off" @bind="m.Code" /></div>
+            <button type="submit" disabled="@State.Locked">Zapisz</button>
+        </EditForm>
+    }
+    <AzureUriList @bind-BaseUrl="baseUrl" />
+}
+@code {
+    sealed class Form { public string Tenant { get; set; } = ""; public string Client { get; set; } = ""; public string Code { get; set; } = ""; }
+    Form m = new(); string? error; bool done; string baseUrl = "";
+    protected override void OnInitialized() => baseUrl = new Uri(Nav.BaseUri).GetLeftPart(UriPartial.Authority) + "/";
+    void Save()
+    {
+        error = null;
+        if (State.Locked) { error = "Za dużo błędnych kodów. Uruchom aplikację ponownie, aby spróbować jeszcze raz."; return; }
+        error = M365Samoobsluga.Core.Services.AzureSetup.ValidateTenantId(m.Tenant) ?? M365Samoobsluga.Core.Services.AzureSetup.ValidateClientId(m.Client);
+        if (error is not null) return;
+        if (!State.TryCode(m.Code)) { error = "Nieprawidłowy kod konfiguracji."; return; }
+        M365Samoobsluga.Web.Setup.AzureAdFile.Save(Path.Combine(Config["Samoobsluga:DataDirectory"] ?? "App_Data", "azuread.json"), m.Tenant, m.Client);
+        done = true;
+    }
+}

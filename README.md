@@ -24,7 +24,7 @@ Dodawania nowych metod 2FA nie da się zrobić z aplikacji: według dokumentacji
 
 ### Stopka według wzoru z SZO
 
-Generator działa jak moduł stopek w SZO: jeden szablon HTML dla wszystkich. Dane organizacji i wygląd ustawia administrator w konfiguracji (`Samoobsluga:Signature:Org` i `:Design`): nazwa, adres, NIP, KRS, strona, logo, czcionka, rozmiary, kolory, separator, wybór widocznych pól oraz treść promocyjna. Wygląd jest przycinany do dozwolonych wartości (czcionki z listy, kolory `#rrggbb`, logo tylko przez https), a treść promocyjna przechodzi przez listę dozwolonych znaczników. Użytkownik wpisuje tylko stanowisko i telefon albo pobiera je z profilu Microsoft 365. Imię, nazwisko i e-mail biorą się z konta. Aplikacja pokazuje podgląd i kopiuje stopkę do schowka w wersji HTML i tekstowej. Stopkę dopisywaną po stronie serwera, do każdej wysyłanej wiadomości, ustawia administrator regułą transportu w Exchange.
+Generator działa jak moduł stopek w SZO: jeden szablon HTML dla wszystkich. Dane organizacji i wygląd ustawia administrator na stronie „Administrator: stopka" (widoczna dla kont z `Samoobsluga:Admins`; zapis trafia do `App_Data/signature-template.json`, a wartości początkowe pochodzą z `Samoobsluga:Signature`): nazwa, adres, NIP, KRS, strona, logo, czcionka, rozmiary, kolory, separator, wybór widocznych pól oraz treść promocyjna. Wygląd jest przycinany do dozwolonych wartości (czcionki z listy, kolory `#rrggbb`, logo tylko przez https), a treść promocyjna przechodzi przez listę dozwolonych znaczników. Użytkownik wpisuje tylko stanowisko i telefon albo pobiera je z profilu Microsoft 365. Imię, nazwisko i e-mail biorą się z konta. Aplikacja pokazuje podgląd i kopiuje stopkę do schowka w wersji HTML i tekstowej. Stopkę dopisywaną po stronie serwera, do każdej wysyłanej wiadomości, ustawia administrator regułą transportu w Exchange.
 
 ### Aliasy: droga do pełnej automatyzacji
 
@@ -49,7 +49,7 @@ Każda zmiana trafia do dziennika jako JSON (`AUDYT {...}`: czas UTC, UPN, akcja
 ## Rejestracja aplikacji w Entra ID
 
 1. W centrum administracyjnym Entra wybierz Applications → App registrations → New registration. Typ konta: tylko ten katalog (single tenant).
-2. Dodaj Redirect URI typu Web: `https://localhost:5001/signin-oidc` i adres produkcyjny `https://<host>/signin-oidc`. Front-channel logout URL: `https://<host>/signout-oidc`.
+2. Dodaj Redirect URI typu Web: `http://localhost:30375/signin-oidc` (lokalnie Entra dopuszcza http dla localhost) i adres produkcyjny `https://<host>/signin-oidc`. Front-channel logout URL: `https://<host>/signout-oidc`.
 3. W Certificates & secrets dodaj certyfikat (patrz niżej). Sekret klienta jest dopuszczalny tylko lokalnie.
 4. W API permissions dodaj uprawnienia delegowane Microsoft Graph: `User.Read`, `MailboxSettings.ReadWrite`, `User-PasswordProfile.ReadWrite.All`, `UserAuthenticationMethod.ReadWrite`.
 5. Kliknij Grant admin consent. Zakres hasła zawsze wymaga zgody administratora, a bez zgody użytkownicy zobaczą prośbę o nią przy logowaniu.
@@ -76,9 +76,27 @@ Aplikacja wykazuje się przed Entra ID certyfikatem, a nie sekretem. Certyfikat 
 4. Przy starcie aplikacja sprawdza certyfikat i zapisuje w logu, ile dni mu zostało. Ostrzega, gdy zostało 30 dni lub mniej, gdy certyfikatu nie ma w magazynie oraz gdy na produkcji używasz sekretu klienta.
 5. Przy wymianie dodaj nowy certyfikat do rejestracji, zmień odcisk w konfiguracji, uruchom aplikację ponownie i dopiero wtedy usuń stary.
 
+## Pierwsza konfiguracja w przeglądarce i adresy do Azure
+
+Tenant ID i Client ID możesz wpisać w aplikacji zamiast w plikach. Gdy ich nie ma, aplikacja startuje w trybie konfiguracji i udostępnia tylko stronę `/setup`. Kod konfiguracji znajdziesz w logu serwera (linia „Kod konfiguracji"). Bez niego formularz nie zapisze zmian, a po 5 błędnych kodach blokuje się do restartu. Identyfikatory trafiają do `App_Data/azuread.json` (bez sekretów), a po zapisie trzeba uruchomić aplikację ponownie. Plik ma pierwszeństwo przed `appsettings.json`. Później zmienisz je na stronie Administrator: Azure (konta z `Samoobsluga:Admins`).
+
+Obie strony pokazują adresy, które trzeba dodać w Azure (Entra → App registrations → aplikacja → Authentication). Dla adresu `https://poczta.example.org/` to:
+
+| Wpis | Wartość |
+|---|---|
+| Redirect URI (Web) | `https://poczta.example.org/signin-oidc` |
+| Redirect URI po wylogowaniu (Web) | `https://poczta.example.org/signout-callback-oidc` |
+| Front-channel logout URL | `https://poczta.example.org/signout-oidc` |
+
+Adres w Azure musi zgadzać się znak w znak z adresem w przeglądarce, razem z portem. Lokalnie (port 30375) działa `http://localhost:30375/...`; poza localhostem Entra wymaga https.
+
+## Stopka w Outlookach (reguła Exchange Online)
+
+Strona Administrator: stopka w Outlooku generuje regułę transportową, która dopisuje stopkę do każdej wiadomości wychodzącej od użytkowników organizacji. Działa w każdym Outlooku (komputer, przeglądarka, telefon), bo stopka jest dodawana na serwerze. Szablon bierze dane osoby z katalogu przez tokeny Exchange (`%%DisplayName%%`, `%%Title%%`, `%%MobilePhone%%`, `%%WindowsEmailAddress%%`), a wygląd z ustawień stopki. Aplikacja pokazuje podgląd, pilnuje limitu 5000 znaków i podaje skrypt PowerShell (`New-TransportRule` lub `Set-TransportRule`). Reguła startuje w trybie Audit, który niczego nie zmienia w wiadomościach. Po testach przełączasz ją na Enforce. Znacznik w nagłówku `X-Samoobsluga-Stopka` chroni przed drugą stopką w wątku. Aplikacja sama nie zmienia ustawień Exchange: skrypt uruchamia administrator po `Connect-ExchangeOnline`. Przy stopce z serwera użytkownicy nie powinni dodawać własnej w Outlooku.
+
 ## Konfiguracja
 
-`appsettings.json` ma puste `TenantId` i `ClientId`. Ustaw je lokalnie przez User Secrets, a na serwerze przez zmienne środowiskowe:
+`appsettings.json` ma puste `TenantId` i `ClientId`. Wpisz je na stronie `/setup` (patrz wyżej) albo ustaw przez User Secrets lub zmienne środowiskowe:
 
 ```bash
 cd src/M365Samoobsluga.Web
@@ -88,7 +106,7 @@ dotnet user-secrets set "AzureAd:ClientId" "<id-aplikacji>"
 
 Zmienne środowiskowe mają postać `AzureAd__TenantId`, `AzureAd__ClientId`, `AzureAd__ClientCredentials__0__SourceType` i tak dalej. Sekretów i certyfikatów nie wpisuj do plików w repozytorium.
 
-Sekcja `Samoobsluga` zawiera: `UseMockServices` (tryb demo), `DataDirectory` (nadpisania stanowiska i telefonu), `AliasRequestQueuePath` (kolejka wniosków), `BlockedForwardingDomains` i `Signature` (wzór stopki).
+Domyślny adres aplikacji to `http://localhost:30375` (ustawienie `Urls`; na serwerze nadpisz zmienną `ASPNETCORE_URLS`). Sekcja `Samoobsluga` zawiera: `Admins` (lista UPN lub identyfikatorów obiektu kont, które mogą zmieniać wzór stopki na stronie Administrator: stopka), `UseMockServices` (tryb demo), `DataDirectory` (nadpisania stanowiska i telefonu), `AliasRequestQueuePath` (kolejka wniosków), `BlockedForwardingDomains` i `Signature` (wzór stopki).
 
 ## Uruchomienie lokalne
 

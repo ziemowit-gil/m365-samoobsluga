@@ -57,3 +57,9 @@ public sealed class AuditedTwoFactorService(ITwoFactorService inner, IAuditLog l
     public Task<IReadOnlyList<AuthMethod>> ListAsync(CancellationToken ct = default) => inner.ListAsync(ct);
     public Task RemoveAuthenticatorAsync(string id, CancellationToken ct = default) => Run("2fa.usun.authenticator", id, () => inner.RemoveAuthenticatorAsync(id, ct));
 }
+
+public sealed class AuditedSignatureTemplateStore(ISignatureTemplateStore inner, IAuditLog log, ICurrentUser user) : AuditBase(log, user), ISignatureTemplateStore
+{
+    public Task<SignatureTemplate> GetAsync(CancellationToken ct = default) => inner.GetAsync(ct);
+    public Task SaveAsync(SignatureTemplate t, CancellationToken ct = default) => Run("admin.stopka.szablon.zapis", null, () => inner.SaveAsync(t, ct));
+}

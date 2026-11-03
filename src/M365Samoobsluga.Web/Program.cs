@@ -4,6 +4,7 @@ using M365Samoobsluga.Graph.Services;
 using M365Samoobsluga.Web.Auth;
 using M365Samoobsluga.Web.Components;
 using M365Samoobsluga.Web.Mocks;
+using M365Samoobsluga.Web.Setup;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
@@ -13,10 +14,17 @@ var opts = builder.Configuration.GetSection("Samoobsluga");
 var useMock = opts.GetValue<bool>("UseMockServices");
 var dataDir = opts.GetValue<string>("DataDirectory") ?? "App_Data";
 
+// Tenant ID i Client ID mogą pochodzić z konfiguracji albo ze strony /setup (plik App_Data/azuread.json, bez sekretów).
+// Plik wczytujemy na końcu, więc ma pierwszeństwo przed appsettings.json.
+builder.Configuration.AddJsonFile(Path.GetFullPath(Path.Combine(dataDir, "azuread.json")), optional: true, reloadOnChange: false);
+var configured = AzureSetup.IsConfigured(builder.Configuration["AzureAd:TenantId"], builder.Configuration["AzureAd:ClientId"]);
+var setupMode = !useMock && !configured;
+builder.Services.AddSingleton(new SetupState(setupMode, setupMode ? SetupState.NewCode() : ""));
+
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
 
-if (!useMock)
+if (!useMock && configured)
 {
     // Sekrety (ClientSecret / certyfikat) wyłącznie z User Secrets lub zmiennych środowiskowych, nigdy z repozytorium.
     var scopes = builder.Configuration.GetSection("DownstreamApis:MicrosoftGraph:Scopes").Get<string[]>() ?? [];
@@ -46,7 +54,7 @@ if (!useMock)
     builder.Services.AddScoped<GraphSignatureService>(sp => new GraphSignatureService(sp.GetRequiredService<Microsoft.Graph.GraphServiceClient>(), Path.Combine(dataDir, "signatures"), sp.GetRequiredService<ICurrentUser>()));
     builder.Services.AddScoped<ISignatureService>(sp => new AuditedSignatureService(sp.GetRequiredService<GraphSignatureService>(), sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
 }
-else
+else if (useMock)
 {
     // Tryb lokalny bez tenanta: dane w pamięci, bez logowania. Nie używać na produkcji.
     builder.Services.AddAuthentication("Mock").AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, MockAuthHandler>("Mock", _ => { });
@@ -63,14 +71,34 @@ else
     builder.Services.AddScoped<ISignatureService>(sp => new AuditedSignatureService(new MockSignatureService(sp.GetRequiredService<MockMailbox>()), sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
 }
 builder.Services.AddScoped<UiGuard>();
-// Szablon stopki organizacji (dane i wygląd) ustawia administrator w konfiguracji: Samoobsluga:Signature:Org i :Design.
-builder.Services.AddSingleton(new SignatureTemplate(
+// Wzór stopki: domyślne wartości z konfiguracji (Samoobsluga:Signature), zmiany administratora w pliku w katalogu danych.
+var defaultTemplate = new SignatureTemplate(
     opts.GetSection("Signature:Org").Get<M365Samoobsluga.Core.Models.SignatureOrg>() ?? new(),
-    opts.GetSection("Signature:Design").Get<M365Samoobsluga.Core.Models.SignatureDesign>() ?? new()));
+    opts.GetSection("Signature:Design").Get<M365Samoobsluga.Core.Models.SignatureDesign>() ?? new());
+builder.Services.AddScoped<ISignatureTemplateStore>(sp =>
+{
+    var inner = useMock ? (ISignatureTemplateStore)sp.GetRequiredService<MockTemplateStore>()
+                        : new FileSignatureTemplateStore(Path.Combine(dataDir, "signature-template.json"), defaultTemplate);
+    return new AuditedSignatureTemplateStore(inner, sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>());
+});
+if (useMock) builder.Services.AddSingleton(new MockTemplateStore(defaultTemplate));
+
+// Administratorzy ustawień: Samoobsluga:Admins (UPN lub identyfikatory obiektu). W trybie demo administratorem jest konto demo.
+var admins = new AdminList(useMock ? ["demo@feer.org.pl"] : opts.GetSection("Admins").Get<string[]>() ?? []);
+builder.Services.AddSingleton(admins);
+builder.Services.AddAuthorizationBuilder().AddPolicy("Admin", p => p.RequireAssertion(ctx =>
+    admins.IsAdmin(new M365Samoobsluga.Core.Models.UserIdentity(
+        ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ?? ctx.User.FindFirst("oid")?.Value ?? "",
+        ctx.User.FindFirst("preferred_username")?.Value ?? "", null))));
 
 var app = builder.Build();
 
-if (!useMock)
+if (setupMode)
+{
+    var state = app.Services.GetRequiredService<SetupState>();
+    app.Logger.LogWarning("Aplikacja nie ma Tenant ID i Client ID. Otwórz /setup i wpisz je. Kod konfiguracji: {Code}", state.Code);
+}
+if (!useMock && configured)
 {
     var types = builder.Configuration.GetSection("AzureAd:ClientCredentials").GetChildren().Select(c => c["SourceType"] ?? "").Where(t => t != "").ToList();
     foreach (var warning in CredentialPolicy.Evaluate(types, app.Environment.IsProduction()))
@@ -92,12 +120,22 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["X-Frame-Options"] = "DENY";
     await next();
 });
-app.UseAuthentication();
+if (setupMode)
+{
+    // Do czasu konfiguracji działa tylko /setup (oraz zasoby techniczne).
+    app.Use(async (ctx, next) =>
+    {
+        var path = ctx.Request.Path.Value ?? "/";
+        if (path != "/setup" && !path.Contains('.') && !path.StartsWith("/_")) { ctx.Response.Redirect("/setup"); return; }
+        await next();
+    });
+}
+if (!setupMode) app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-if (!useMock) app.MapControllers();
+if (!useMock && configured) app.MapControllers();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.Run();
 

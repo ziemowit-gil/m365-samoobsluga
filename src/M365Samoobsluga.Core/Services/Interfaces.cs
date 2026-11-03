@@ -46,3 +46,17 @@ public interface ITwoFactorService
     /// <summary>Usuwa urządzenie Microsoft Authenticator z własnego konta. Sprawdza <see cref="TwoFactorPolicy"/>.</summary>
     Task RemoveAuthenticatorAsync(string methodId, CancellationToken ct = default);
 }
+
+/// <summary>Magazyn wzoru stopki organizacji. Zapis tylko dla administratorów (pilnuje tego warstwa UI i polityka Admin).</summary>
+public interface ISignatureTemplateStore
+{
+    Task<SignatureTemplate> GetAsync(CancellationToken ct = default);
+    Task SaveAsync(SignatureTemplate template, CancellationToken ct = default);
+}
+
+/// <summary>Kto jest administratorem ustawień: lista UPN lub identyfikatorów obiektu z konfiguracji.</summary>
+public sealed class AdminList(IEnumerable<string> entries)
+{
+    private readonly HashSet<string> _set = new(entries.Where(e => !string.IsNullOrWhiteSpace(e)).Select(e => e.Trim()), StringComparer.OrdinalIgnoreCase);
+    public bool IsAdmin(UserIdentity u) => _set.Contains(u.UserPrincipalName) || (u.ObjectId != "" && _set.Contains(u.ObjectId));
+}

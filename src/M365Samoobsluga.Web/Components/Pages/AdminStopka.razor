@@ -1,0 +1,83 @@
+@page "/admin/stopka"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "Admin")]
+@inject ISignatureTemplateStore Store
+@inject UiGuard Guard
+<PageTitle>Administrator: stopka · Samoobsługa poczty</PageTitle>
+<h1>Ustawienia stopki organizacji</h1>
+<p>Te dane i ten wygląd widzą wszyscy użytkownicy w swojej stopce. Każdy dodaje do nich tylko własne stanowisko i telefon.</p>
+@if (loading) { <p role="status">Wczytywanie…</p> }
+else
+{
+<Status Error="error" Success="ok" />
+<EditForm Model="o" OnSubmit="Save" FormName="admin-stopka">
+    <fieldset>
+        <legend>Dane organizacji</legend>
+        <div class="field"><label for="on">Nazwa organizacji</label><input id="on" type="text" maxlength="150" @bind="o.OrgName" /></div>
+        <div class="field"><label for="ad">Adres</label><input id="ad" type="text" maxlength="200" @bind="o.Address" /></div>
+        <div class="field"><label for="nip">NIP</label><input id="nip" type="text" maxlength="20" @bind="o.Nip" /></div>
+        <div class="field"><label for="krs">KRS</label><input id="krs" type="text" maxlength="20" @bind="o.Krs" /></div>
+        <div class="field"><label for="web">Strona internetowa</label><input id="web" type="text" maxlength="200" @bind="o.Website" /></div>
+        <div class="field">
+            <label for="pr">Treść promocyjna (HTML)</label>
+            <p class="hint" id="prh">Dozwolone znaczniki: a, b, strong, i, em, u, br, p, span, img. Reszta zostanie usunięta.</p>
+            <textarea id="pr" aria-describedby="prh" maxlength="4000" @bind="o.PromoHtml"></textarea>
+        </div>
+    </fieldset>
+    <fieldset>
+        <legend>Wygląd</legend>
+        <div class="field"><label for="fo">Czcionka</label>
+            <select id="fo" @bind="d.Font">
+                @foreach (var f in SignatureRenderer.Fonts)
+                {
+                    <option value="@f">@f</option>
+                }
+            </select></div>
+        <div class="field"><label for="sz">Rozmiar tekstu (11 do 16 px)</label><input id="sz" type="number" min="11" max="16" @bind="d.Size" /></div>
+        <div class="field"><label for="ns">Rozmiar nazwiska (13 do 24 px)</label><input id="ns" type="number" min="13" max="24" @bind="d.NameSize" /></div>
+        <div class="field"><label for="co">Kolor tekstu (#rrggbb)</label><input id="co" type="text" maxlength="7" @bind="d.Color" /></div>
+        <div class="field"><label for="ac">Kolor akcentu i linków (#rrggbb)</label><input id="ac" type="text" maxlength="7" @bind="d.Accent" /></div>
+        <div class="field check"><input id="na" type="checkbox" @bind="d.NameAccent" /><label for="na">Nazwisko w kolorze akcentu</label></div>
+        <div class="field"><label for="ss">Separator przed treścią promocyjną</label>
+            <select id="ss" @bind="d.SepStyle">
+                <option value="solid">Ciągła linia</option><option value="dashed">Linia kreskowana</option>
+                <option value="dotted">Linia kropkowana</option><option value="none">Bez linii</option>
+            </select></div>
+        <div class="field"><label for="sc">Kolor separatora (#rrggbb)</label><input id="sc" type="text" maxlength="7" @bind="d.SepColor" /></div>
+        <div class="field"><label for="gp">Odstęp między blokami (0 do 24 px)</label><input id="gp" type="number" min="0" max="24" @bind="d.Gap" /></div>
+        <div class="field"><label for="lu">Adres logo (tylko https)</label><input id="lu" type="text" @bind="d.LogoUrl" /></div>
+        <div class="field"><label for="lw">Szerokość logo (40 do 300 px)</label><input id="lw" type="number" min="40" max="300" @bind="d.LogoWidth" /></div>
+    </fieldset>
+    <fieldset>
+        <legend>Widoczne pola</legend>
+        <div class="field check"><input id="v1" type="checkbox" @bind="d.ShowTitle" /><label for="v1">Stanowisko</label></div>
+        <div class="field check"><input id="v2" type="checkbox" @bind="d.ShowPhone" /><label for="v2">Telefon</label></div>
+        <div class="field check"><input id="v3" type="checkbox" @bind="d.ShowEmail" /><label for="v3">Adres e-mail</label></div>
+        <div class="field check"><input id="v4" type="checkbox" @bind="d.ShowOrg" /><label for="v4">Nazwa organizacji</label></div>
+        <div class="field check"><input id="v5" type="checkbox" @bind="d.ShowAddress" /><label for="v5">Adres</label></div>
+        <div class="field check"><input id="v6" type="checkbox" @bind="d.ShowNip" /><label for="v6">NIP</label></div>
+        <div class="field check"><input id="v7" type="checkbox" @bind="d.ShowKrs" /><label for="v7">KRS</label></div>
+        <div class="field check"><input id="v8" type="checkbox" @bind="d.ShowWebsite" /><label for="v8">Strona internetowa</label></div>
+        <div class="field check"><input id="v9" type="checkbox" @bind="d.ShowPromo" /><label for="v9">Treść promocyjna</label></div>
+    </fieldset>
+    <button type="submit" disabled="@busy">Zapisz ustawienia</button>
+</EditForm>
+<h2>Podgląd (przykładowa osoba)</h2>
+<div class="preview" role="region" aria-label="Podgląd stopki">@((MarkupString)SignatureRenderer.RenderHtml(o, d, Sample))</div>
+}
+@code {
+    static readonly SignaturePerson Sample = new("Anna Kowalska", "Koordynatorka wolontariatu", "+48 600 100 200", "anna.kowalska@example.org");
+    SignatureOrg o = new(); SignatureDesign d = new(); bool loading = true, busy; string? error, ok;
+    protected override async Task OnInitializedAsync()
+    {
+        error = await Guard.RunAsync(async () => { var t = await Store.GetAsync(); o = t.Org with { }; d = t.Design; });
+        loading = false;
+    }
+    async Task Save()
+    {
+        busy = true; ok = null;
+        error = await Guard.RunAsync(() => Store.SaveAsync(new SignatureTemplate(o, d)));
+        if (error is null) { d = SignatureRenderer.Sanitize(d); ok = "Ustawienia stopki zapisane. Nowy wzór widzą wszyscy użytkownicy."; }
+        busy = false;
+    }
+}

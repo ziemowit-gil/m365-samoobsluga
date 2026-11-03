@@ -1,0 +1,36 @@
+@page "/admin/azure"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "Admin")]
+@inject IConfiguration Config
+@inject NavigationManager Nav
+@inject M365Samoobsluga.Core.Audit.IAuditLog Audit
+@inject ICurrentUser User
+<PageTitle>Administrator: Azure · Samoobsługa poczty</PageTitle>
+<h1>Ustawienia Azure</h1>
+<p>Identyfikatory aplikacji zarejestrowanej w Entra ID. Zmiana zaczyna działać po ponownym uruchomieniu aplikacji. Sekretu ani certyfikatu tu nie ustawiasz.</p>
+@if (error is not null) { <p class="msg error" role="alert">@error</p> }
+@if (ok) { <p class="msg ok" role="status">Zapisano. Uruchom aplikację ponownie, żeby zmiana zadziałała.</p> }
+<EditForm Model="m" OnSubmit="Save" FormName="admin-azure">
+    <div class="field"><label for="tid">Tenant ID (Directory ID)</label><input id="tid" type="text" autocomplete="off" @bind="m.Tenant" /></div>
+    <div class="field"><label for="cid">Client ID (Application ID)</label><input id="cid" type="text" autocomplete="off" @bind="m.Client" /></div>
+    <button type="submit">Zapisz</button>
+</EditForm>
+<AzureUriList @bind-BaseUrl="baseUrl" />
+@code {
+    sealed class Form { public string Tenant { get; set; } = ""; public string Client { get; set; } = ""; }
+    Form m = new(); string? error; bool ok; string baseUrl = "";
+    protected override void OnInitialized()
+    {
+        m = new Form { Tenant = Config["AzureAd:TenantId"] ?? "", Client = Config["AzureAd:ClientId"] ?? "" };
+        baseUrl = new Uri(Nav.BaseUri).GetLeftPart(UriPartial.Authority) + "/";
+    }
+    void Save()
+    {
+        ok = false;
+        error = M365Samoobsluga.Core.Services.AzureSetup.ValidateTenantId(m.Tenant) ?? M365Samoobsluga.Core.Services.AzureSetup.ValidateClientId(m.Client);
+        if (error is not null) return;
+        M365Samoobsluga.Web.Setup.AzureAdFile.Save(Path.Combine(Config["Samoobsluga:DataDirectory"] ?? "App_Data", "azuread.json"), m.Tenant, m.Client);
+        Audit.Write(new M365Samoobsluga.Core.Audit.AuditEntry(DateTimeOffset.UtcNow, User.Current.UserPrincipalName, "admin.azure.zapis", m.Client.Trim(), true, null));
+        ok = true;
+    }
+}

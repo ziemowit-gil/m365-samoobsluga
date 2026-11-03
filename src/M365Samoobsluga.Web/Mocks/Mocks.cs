@@ -102,3 +102,15 @@ public sealed class MockTwoFactorService : ITwoFactorService
         _m.Remove(t); return Task.CompletedTask;
     }
 }
+
+public sealed class MockTemplateStore(SignatureTemplate initial) : ISignatureTemplateStore
+{
+    private SignatureTemplate _t = initial;
+    public Task<SignatureTemplate> GetAsync(CancellationToken ct = default) => Task.FromResult(_t);
+    public Task SaveAsync(SignatureTemplate t, CancellationToken ct = default)
+    {
+        var errs = SignatureRenderer.ValidateOrg(t.Org);
+        if (errs.Count > 0) throw new UserFacingException(string.Join(" ", errs));
+        _t = new SignatureTemplate(t.Org, SignatureRenderer.Sanitize(t.Design)); return Task.CompletedTask;
+    }
+}

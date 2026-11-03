@@ -1,0 +1,60 @@
+@page "/admin/stopka-outlook"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "Admin")]
+@inject ISignatureTemplateStore Store
+@inject IJSRuntime Js
+@inject UiGuard Guard
+<PageTitle>Administrator: stopka w Outlooku · Samoobsługa poczty</PageTitle>
+<h1>Stopka we wszystkich Outlookach</h1>
+<p>Reguła transportowa Exchange Online dopisuje stopkę do każdej wiadomości wychodzącej, więc działa tak samo w Outlooku na komputerze, w przeglądarce i w telefonie. Dane osoby (imię i nazwisko, stanowisko, telefon, adres e-mail) Exchange bierze z jej konta w katalogu. Wzór pochodzi ze strony <a href="admin/stopka">Administrator: stopka</a>.</p>
+<p class="msg info">Aplikacja nie zmienia ustawień Exchange sama. Wygenerowany skrypt uruchamia administrator Exchange po połączeniu z <code>Connect-ExchangeOnline</code>. Przy takim podejściu stopka nie widnieje w oknie pisania wiadomości, a użytkownicy nie powinni dodawać własnej w Outlooku, żeby nie powstały dwie.</p>
+@if (loading) { <p role="status">Wczytywanie…</p> }
+else
+{
+    <Status Error="error" Success="ok" />
+    @if (limitError is not null) { <p class="msg error" role="alert">@limitError</p> }
+    <fieldset>
+        <legend>Tryb reguły</legend>
+        <div class="field check"><input id="m1" type="radio" name="mode" checked="@(mode == ExchangeRuleMode.Audit)" @onchange="() => mode = ExchangeRuleMode.Audit" /><label for="m1">Audit: nic nie zmienia w wiadomościach, tylko zapisuje wyniki (zalecany na początek)</label></div>
+        <div class="field check"><input id="m2" type="radio" name="mode" checked="@(mode == ExchangeRuleMode.Enforce)" @onchange="() => mode = ExchangeRuleMode.Enforce" /><label for="m2">Enforce: dopisuje stopkę do wiadomości</label></div>
+    </fieldset>
+    <p>Długość szablonu: <strong>@html.Length</strong> z @ExchangeRuleBuilder.MaxChars znaków.</p>
+    <h2>Podgląd (przykładowa osoba)</h2>
+    <div class="preview" role="region" aria-label="Podgląd stopki">@((MarkupString)ExchangeRuleBuilder.Substitute(html, Sample))</div>
+    <h2>Skrypt PowerShell</h2>
+    <label for="script">Skrypt tworzący lub aktualizujący regułę</label>
+    <textarea id="script" readonly rows="14">@ScriptFor()</textarea>
+    <p>
+        <button type="button" @onclick="CopyScript" disabled="@(limitError is not null)">Kopiuj skrypt</button>
+    </p>
+    <div role="status">@copied</div>
+    <h2>Jak wdrożyć</h2>
+    <ol>
+        <li>Zainstaluj moduł: <code>Install-Module ExchangeOnlineManagement</code>.</li>
+        <li>Połącz się kontem z rolą do reguł transportowych: <code>Connect-ExchangeOnline</code>.</li>
+        <li>Uruchom skrypt. Reguła powstaje w trybie Audit.</li>
+        <li>Wyślij kilka wiadomości testowych i sprawdź w śledzeniu wiadomości, że reguła się dopasowuje.</li>
+        <li>Wróć tu, wybierz Enforce, skopiuj nowy skrypt i uruchom go jeszcze raz.</li>
+        <li>Aby usunąć regułę: <code>@ExchangeRuleBuilder.BuildRemoveScript()</code></li>
+    </ol>
+}
+@code {
+    static readonly SignaturePerson Sample = new("Anna Kowalska", "Koordynatorka wolontariatu", "+48 600 100 200", "anna.kowalska@example.org");
+    string html = "", script = "", copied = "";
+    string? error, ok, limitError; bool loading = true;
+    ExchangeRuleMode mode = ExchangeRuleMode.Audit;
+
+    protected override async Task OnInitializedAsync()
+    {
+        error = await Guard.RunAsync(async () =>
+        {
+            var t = await Store.GetAsync();
+            html = ExchangeRuleBuilder.BuildTemplateHtml(t.Org, t.Design);
+            limitError = ExchangeRuleBuilder.Validate(html);
+        });
+        loading = false;
+    }
+    protected override void OnParametersSet() { }
+    string ScriptFor() => limitError is null ? ExchangeRuleBuilder.BuildScript(html, mode) : "";
+    async Task CopyScript() => copied = await Js.InvokeAsync<bool>("samoobsluga.copyText", ExchangeRuleBuilder.BuildScript(html, mode)) ? "Skrypt skopiowany." : "Nie udało się skopiować. Zaznacz tekst skryptu i skopiuj ręcznie.";
+}

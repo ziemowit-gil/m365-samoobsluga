@@ -78,3 +78,45 @@ public class SignatureTests
     [Fact]
     public void Stanowisko_za_dlugie_odrzucone() => Assert.NotNull(SignatureRenderer.ValidateTitle(new string('a', 101)));
 }
+
+public class SignatureAdminTests
+{
+    [Fact]
+    public void Admin_rozpoznawany_po_upn_i_oid_bez_wzgledu_na_wielkosc_liter()
+    {
+        var a = new AdminList(["Admin@Feer.org.pl", " 1111 "]);
+        Assert.True(a.IsAdmin(new(" ", "admin@feer.org.pl", null)));
+        Assert.True(a.IsAdmin(new("1111", "ktos@feer.org.pl", null)));
+        Assert.False(a.IsAdmin(new("2222", "ktos@feer.org.pl", null)));
+    }
+
+    [Fact]
+    public void Pusta_lista_adminow_nikogo_nie_dopuszcza() => Assert.False(new AdminList([]).IsAdmin(new("", "", null)));
+
+    [Fact]
+    public void Walidacja_organizacji_zglasza_bledy()
+    {
+        var e = SignatureRenderer.ValidateOrg(new SignatureOrg { OrgName = "", Nip = "abc", Krs = "x", Website = "a b\"" });
+        Assert.Equal(4, e.Count);
+        Assert.Empty(SignatureRenderer.ValidateOrg(new SignatureOrg { OrgName = "FEER", Nip = "123-45-67", Krs = "0000123456", Website = "feer.org.pl" }));
+    }
+
+    [Fact]
+    public async Task Magazyn_zapisuje_i_czysci_wyglad_a_bez_pliku_zwraca_domyslne()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        var def = new SignatureTemplate(new SignatureOrg { OrgName = "Domyślna" }, new SignatureDesign());
+        try
+        {
+            var s = new M365Samoobsluga.Graph.Services.FileSignatureTemplateStore(path, def);
+            Assert.Equal("Domyślna", (await s.GetAsync()).Org.OrgName);
+            await s.SaveAsync(new SignatureTemplate(new SignatureOrg { OrgName = "Nowa" }, new SignatureDesign { Size = 99, Color = "zły" }));
+            var t = await s.GetAsync();
+            Assert.Equal("Nowa", t.Org.OrgName);
+            Assert.Equal(16, t.Design.Size);
+            Assert.Equal("#222222", t.Design.Color);
+            await Assert.ThrowsAsync<UserFacingException>(() => s.SaveAsync(new SignatureTemplate(new SignatureOrg(), new SignatureDesign())));
+        }
+        finally { File.Delete(path); }
+    }
+}

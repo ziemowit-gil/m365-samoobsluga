@@ -21,6 +21,11 @@
         <li><NavLink href="stopka">Stopka</NavLink></li>
         <li><NavLink href="autoresponder">Autoresponder</NavLink></li>
         <li><NavLink href="przekierowanie">Przekierowanie</NavLink></li>
+        <AuthorizeView Policy="Admin">
+            <li><NavLink href="admin/stopka">Administrator: stopka</NavLink></li>
+            <li><NavLink href="admin/stopka-outlook">Administrator: stopka w Outlooku</NavLink></li>
+            <li><NavLink href="admin/azure">Administrator: Azure</NavLink></li>
+        </AuthorizeView>
     </ul>
 </nav>
 <main id="tresc" tabindex="-1">@Body</main>

@@ -2,7 +2,7 @@
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject ISignatureService Svc
-@inject SignatureTemplate Template
+@inject ISignatureTemplateStore Store
 @inject IJSRuntime Js
 @inject UiGuard Guard
 <PageTitle>Stopka · Samoobsługa poczty</PageTitle>
@@ -33,6 +33,7 @@ else
 }
 @code {
     sealed class Form { public string Title { get; set; } = ""; public string Phone { get; set; } = ""; }
+    SignatureTemplate Template = new(new(), new());
     Form m = new(); SignaturePerson person = new("", "", "", ""); bool loading = true, busy; string? error, ok, copied;
     SignaturePerson Current => person with { Title = m.Title.Trim(), Phone = m.Phone.Trim() };
     string Html => SignatureRenderer.RenderHtml(Template.Org, Template.Design, Current);
@@ -40,7 +41,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        error = await Guard.RunAsync(async () => { person = await Svc.GetAsync(); m = new Form { Title = person.Title, Phone = person.Phone }; });
+        error = await Guard.RunAsync(async () => { Template = await Store.GetAsync(); person = await Svc.GetAsync(); m = new Form { Title = person.Title, Phone = person.Phone }; });
         loading = false;
     }
     async Task Save()

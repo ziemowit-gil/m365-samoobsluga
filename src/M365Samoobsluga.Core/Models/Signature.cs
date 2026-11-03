@@ -1,7 +1,7 @@
 namespace M365Samoobsluga.Core.Models;
 
 /// <summary>Dane organizacji w stopce (ustawia administrator w konfiguracji, jak w module stopek SZO).</summary>
-public sealed class SignatureOrg
+public sealed record SignatureOrg
 {
     public string OrgName { get; set; } = "";
     public string Address { get; set; } = "";

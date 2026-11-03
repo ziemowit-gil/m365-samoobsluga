@@ -70,6 +70,21 @@ public static partial class SignatureRenderer
     public static string? ValidateTitle(string? title) =>
         (title ?? "").Trim().Length <= 100 && !(title ?? "").Any(char.IsControl) ? null : "Stanowisko może mieć najwyżej 100 znaków i nie może zawierać znaków sterujących.";
 
+    /// <summary>Walidacja danych organizacji z formularza administratora. Zwraca błędy po polsku (pusta lista = poprawne).</summary>
+    public static IReadOnlyList<string> ValidateOrg(SignatureOrg o)
+    {
+        var e = new List<string>();
+        if (string.IsNullOrWhiteSpace(o.OrgName)) e.Add("Wpisz nazwę organizacji.");
+        if ((o.OrgName ?? "").Length > 150) e.Add("Nazwa organizacji może mieć najwyżej 150 znaków.");
+        if ((o.Address ?? "").Length > 200) e.Add("Adres może mieć najwyżej 200 znaków.");
+        if (!Regex.IsMatch(o.Nip ?? "", @"^[0-9\- ]{0,20}$")) e.Add("NIP może zawierać tylko cyfry, spacje i myślniki (do 20 znaków).");
+        if (!Regex.IsMatch(o.Krs ?? "", @"^[0-9 ]{0,20}$")) e.Add("KRS może zawierać tylko cyfry i spacje (do 20 znaków).");
+        var w = (o.Website ?? "").Trim();
+        if (w.Length > 200 || Regex.IsMatch(w, @"[\s""'<>]")) e.Add("Adres strony nie może zawierać spacji ani znaków cudzysłowu i nawiasów ostrych (najwyżej 200 znaków).");
+        if ((o.PromoHtml ?? "").Length > 4000) e.Add("Treść promocyjna może mieć najwyżej 4000 znaków.");
+        return e;
+    }
+
     private static string E(string? v) => WebUtility.HtmlEncode(v ?? "");
 
     public static string RenderHtml(SignatureOrg org, SignatureDesign design, SignaturePerson p)
