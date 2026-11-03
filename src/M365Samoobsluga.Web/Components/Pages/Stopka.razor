@@ -12,7 +12,7 @@
 @if (loading) { <p role="status">Wczytywanie…</p> }
 else
 {
-<Status Error="error" Success="ok" />
+<Status Error="@error" Success="@ok" />
 <EditForm Model="m" OnSubmit="Save" FormName="stopka">
     <div class="field"><label for="tt">Stanowisko</label><input id="tt" type="text" maxlength="100" @bind="m.Title" /></div>
     <div class="field">

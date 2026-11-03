@@ -9,12 +9,17 @@
 @if (loading) { <p role="status">Wczytywanie…</p> }
 else
 {
-<Status Error="error" Success="ok" />
+<Status Error="@error" Success="@ok" />
 <EditForm Model="o" OnSubmit="Save" FormName="admin-stopka">
     <fieldset>
         <legend>Dane organizacji</legend>
         <div class="field"><label for="on">Nazwa organizacji</label><input id="on" type="text" maxlength="150" @bind="o.OrgName" /></div>
         <div class="field"><label for="ad">Adres</label><input id="ad" type="text" maxlength="200" @bind="o.Address" /></div>
+        <div class="field">
+            <label for="op">Ogólny numer telefonu</label>
+            <p class="hint" id="oph">Numer kontaktowy organizacji, np. +48 22 123 45 67. Zostaw puste, jeśli go nie podajesz.</p>
+            <input id="op" type="text" inputmode="tel" autocomplete="off" aria-describedby="oph" maxlength="30" @bind="o.Phone" />
+        </div>
         <div class="field"><label for="nip">NIP</label><input id="nip" type="text" maxlength="20" @bind="o.Nip" /></div>
         <div class="field"><label for="krs">KRS</label><input id="krs" type="text" maxlength="20" @bind="o.Krs" /></div>
         <div class="field"><label for="web">Strona internetowa</label><input id="web" type="text" maxlength="200" @bind="o.Website" /></div>
@@ -55,6 +60,7 @@ else
         <div class="field check"><input id="v3" type="checkbox" @bind="d.ShowEmail" /><label for="v3">Adres e-mail</label></div>
         <div class="field check"><input id="v4" type="checkbox" @bind="d.ShowOrg" /><label for="v4">Nazwa organizacji</label></div>
         <div class="field check"><input id="v5" type="checkbox" @bind="d.ShowAddress" /><label for="v5">Adres</label></div>
+        <div class="field check"><input id="v10" type="checkbox" @bind="d.ShowOrgPhone" /><label for="v10">Ogólny numer telefonu</label></div>
         <div class="field check"><input id="v6" type="checkbox" @bind="d.ShowNip" /><label for="v6">NIP</label></div>
         <div class="field check"><input id="v7" type="checkbox" @bind="d.ShowKrs" /><label for="v7">KRS</label></div>
         <div class="field check"><input id="v8" type="checkbox" @bind="d.ShowWebsite" /><label for="v8">Strona internetowa</label></div>

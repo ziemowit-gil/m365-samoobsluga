@@ -11,7 +11,7 @@
 @if (loading) { <p role="status">Wczytywanie…</p> }
 else
 {
-    <Status Error="error" Success="ok" />
+    <Status Error="@error" Success="@ok" />
     @if (limitError is not null) { <p class="msg error" role="alert">@limitError</p> }
     <fieldset>
         <legend>Tryb reguły</legend>

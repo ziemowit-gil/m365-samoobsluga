@@ -55,6 +55,19 @@ Każda zmiana trafia do dziennika jako JSON (`AUDYT {...}`: czas UTC, UPN, akcja
 5. Kliknij Grant admin consent. Zakres hasła zawsze wymaga zgody administratora, a bez zgody użytkownicy zobaczą prośbę o nią przy logowaniu.
 6. W Enterprise applications ustaw Assignment required na Tak i przypisz wolontariuszy, którzy mają mieć dostęp.
 
+### Automatyczna konfiguracja rejestracji
+
+Skrypt `scripts/setup-entra.sh` robi kroki 1 do 6 za ciebie przez Azure CLI (`az`): tworzy lub uzupełnia rejestrację aplikacji (jedna dzierżawa), dodaje adresy przekierowania i adres wylogowania, dodaje cztery uprawnienia delegowane Graph (identyfikatory zakresów odczytuje z twojej dzierżawy, nie są wpisane na sztywno), udziela zgody administratora i tworzy sekret klienta albo dodaje certyfikat (`--cert`). Sekret trafia prosto do pliku z prawami 600 (`--write-env`) i nie jest wyświetlany. Skrypt pyta o potwierdzenie przed zmianami, a `--dry-run` pokazuje sam plan.
+
+```bash
+az login
+./scripts/setup-entra.sh --base-url https://ms365webpanel.feer.org.pl --dry-run
+sudo ./scripts/setup-entra.sh --base-url https://ms365webpanel.feer.org.pl \
+     --write-env /etc/m365-samoobsluga.env --write-azuread /opt/m365-samoobsluga/App_Data/azuread.json
+```
+
+Potrzebujesz konta, które może rejestrować aplikacje i udzielać zgody administratora. Skrypt można uruchamiać ponownie: istniejące adresy zostają, a brakujące są dopisywane. Opcja `--require-assignment` włącza wymóg przypisania użytkowników do aplikacji. Skrypt napisałem na podstawie dokumentacji Azure CLI i sprawdziłem tylko składnię i tryb `--dry-run`, bez zmian w prawdziwej dzierżawie.
+
 ## Logowanie aplikacji certyfikatem
 
 Aplikacja wykazuje się przed Entra ID certyfikatem, a nie sekretem. Certyfikat można odnowić bez zmiany kodu, nie leży w pliku konfiguracji, a wyciek konfiguracji nie daje atakującemu tożsamości aplikacji.

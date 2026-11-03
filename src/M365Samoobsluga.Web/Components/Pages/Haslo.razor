@@ -6,7 +6,7 @@
 <PageTitle>Hasło · Samoobsługa poczty</PageTitle>
 <h1>Zmiana hasła</h1>
 <p>Hasło dotyczy całego konta Microsoft 365, nie tylko poczty. Obowiązują zasady organizacji (długość i złożoność). Aplikacja nie zapisuje haseł.</p>
-<Status Error="error" Success="ok" />
+<Status Error="@error" Success="@ok" />
 <EditForm Model="m" OnSubmit="Save" FormName="haslo">
     <div class="field"><label for="cur">Aktualne hasło</label><input id="cur" type="password" autocomplete="current-password" @bind="m.Current" /></div>
     <div class="field"><label for="new">Nowe hasło</label><input id="new" type="password" autocomplete="new-password" @bind="m.New" /></div>

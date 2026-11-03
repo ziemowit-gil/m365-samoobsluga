@@ -13,7 +13,7 @@ else if (data is not null)
 {
     <p class="msg info">Zmiany aliasów wymagają uprawnień administratora Exchange. Twoja prośba trafi do administratora i zacznie działać po jej realizacji.</p>
 }
-<Status Error="error" Success="ok" />
+<Status Error="@error" Success="@ok" />
 <h2>Dodatkowe aliasy</h2>
 @if (data.SecondaryAddresses.Count == 0) { <p>Nie masz dodatkowych aliasów.</p> }
 else

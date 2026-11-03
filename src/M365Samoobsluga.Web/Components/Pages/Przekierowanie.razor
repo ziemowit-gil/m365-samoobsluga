@@ -9,7 +9,7 @@
 @if (loading) { <p role="status">Wczytywanie ustawień…</p> }
 else
 {
-<Status Error="error" Success="ok" />
+<Status Error="@error" Success="@ok" />
 <EditForm Model="m" OnSubmit="Save" FormName="przekierowanie">
     <div class="field check"><input id="en" type="checkbox" @bind="m.Enabled" /><label for="en">Przekazuj wiadomości na inny adres</label></div>
     <div class="field">

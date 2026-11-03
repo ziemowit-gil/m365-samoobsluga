@@ -8,7 +8,7 @@
 @if (loading) { <p role="status">Wczytywanie ustawień…</p> }
 else
 {
-<Status Error="error" Success="ok" />
+<Status Error="@error" Success="@ok" />
 <EditForm Model="m" OnSubmit="Save" FormName="autoresponder">
     <div class="field check">
         <input id="enabled" type="checkbox" @bind="m.Enabled" />

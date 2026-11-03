@@ -5,6 +5,8 @@ public sealed record SignatureOrg
 {
     public string OrgName { get; set; } = "";
     public string Address { get; set; } = "";
+    /// <summary>Ogólny numer telefonu organizacji (numer kontaktowy, nie komórka pracownika).</summary>
+    public string Phone { get; set; } = "";
     public string Nip { get; set; } = "";
     public string Krs { get; set; } = "";
     public string Website { get; set; } = "";
@@ -30,6 +32,7 @@ public sealed class SignatureDesign
     public bool ShowEmail { get; set; } = true;
     public bool ShowOrg { get; set; } = true;
     public bool ShowAddress { get; set; } = true;
+    public bool ShowOrgPhone { get; set; } = true;
     public bool ShowNip { get; set; } = true;
     public bool ShowKrs { get; set; } = true;
     public bool ShowWebsite { get; set; } = true;

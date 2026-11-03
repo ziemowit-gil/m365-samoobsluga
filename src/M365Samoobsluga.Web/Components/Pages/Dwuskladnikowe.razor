@@ -10,7 +10,7 @@
 @if (loading) { <p role="status">Wczytywanie…</p> }
 else
 {
-<Status Error="error" Success="ok" />
+<Status Error="@error" Success="@ok" />
 @if (methods.Count == 0) { <p>Brak zarejestrowanych metod.</p> }
 else
 {

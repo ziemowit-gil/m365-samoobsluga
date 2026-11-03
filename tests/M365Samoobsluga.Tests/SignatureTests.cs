@@ -21,6 +21,20 @@ public class SignatureTests
     }
 
     [Fact]
+    public void Ogolny_numer_telefonu_jest_w_stopce_html_i_tekscie_i_mozna_go_ukryc()
+    {
+        var org = Org with { Phone = "+48 22 123 45 67" };
+        Assert.Contains("Tel. ogólny: +48 22 123 45 67", SignatureRenderer.RenderHtml(org, new SignatureDesign(), P));
+        Assert.Contains("Tel. ogólny: +48 22 123 45 67", SignatureRenderer.RenderText(org, new SignatureDesign(), P));
+        Assert.DoesNotContain("Tel. ogólny", SignatureRenderer.RenderHtml(org, new SignatureDesign { ShowOrgPhone = false }, P));
+        Assert.DoesNotContain("Tel. ogólny", SignatureRenderer.RenderHtml(Org, new SignatureDesign(), P));
+    }
+
+    [Fact]
+    public void Ogolny_numer_telefonu_jest_walidowany() =>
+        Assert.Single(SignatureRenderer.ValidateOrg(new SignatureOrg { OrgName = "X", Phone = "abc" }));
+
+    [Fact]
     public void Wylaczone_pola_nie_trafiaja_do_stopki()
     {
         var h = SignatureRenderer.RenderHtml(Org, new SignatureDesign { ShowPhone = false, ShowNip = false, ShowTitle = false }, P);

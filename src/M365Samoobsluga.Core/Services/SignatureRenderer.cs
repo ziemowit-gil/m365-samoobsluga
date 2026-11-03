@@ -39,7 +39,7 @@ public static partial class SignatureRenderer
             Gap = Clamp(i.Gap, 0, 24),
             LogoWidth = Clamp(i.LogoWidth, 40, 300),
             LogoUrl = HttpsRx().IsMatch(i.LogoUrl?.Trim() ?? "") ? i.LogoUrl!.Trim() : "",
-            ShowTitle = i.ShowTitle, ShowPhone = i.ShowPhone, ShowEmail = i.ShowEmail, ShowOrg = i.ShowOrg, ShowAddress = i.ShowAddress,
+            ShowTitle = i.ShowTitle, ShowPhone = i.ShowPhone, ShowEmail = i.ShowEmail, ShowOrg = i.ShowOrg, ShowAddress = i.ShowAddress, ShowOrgPhone = i.ShowOrgPhone,
             ShowNip = i.ShowNip, ShowKrs = i.ShowKrs, ShowWebsite = i.ShowWebsite, ShowPromo = i.ShowPromo,
         };
     }
@@ -77,6 +77,7 @@ public static partial class SignatureRenderer
         if (string.IsNullOrWhiteSpace(o.OrgName)) e.Add("Wpisz nazwę organizacji.");
         if ((o.OrgName ?? "").Length > 150) e.Add("Nazwa organizacji może mieć najwyżej 150 znaków.");
         if ((o.Address ?? "").Length > 200) e.Add("Adres może mieć najwyżej 200 znaków.");
+        if (ValidatePhone(o.Phone) is not null) e.Add("Ogólny numer telefonu może zawierać cyfry, spacje, plus, nawiasy, myślniki i kropki (od 3 do 30 znaków).");
         if (!Regex.IsMatch(o.Nip ?? "", @"^[0-9\- ]{0,20}$")) e.Add("NIP może zawierać tylko cyfry, spacje i myślniki (do 20 znaków).");
         if (!Regex.IsMatch(o.Krs ?? "", @"^[0-9 ]{0,20}$")) e.Add("KRS może zawierać tylko cyfry i spacje (do 20 znaków).");
         var w = (o.Website ?? "").Trim();
@@ -105,6 +106,7 @@ public static partial class SignatureRenderer
         h.Append(Row(string.Join(" &nbsp;|&nbsp; ", parts), $"font-size:{d.Size}px;"));
         if (d.ShowOrg) h.Append(Row(E(org.OrgName), $"margin-top:{d.Gap}px;font-size:{d.Size}px;font-weight:bold;"));
         if (d.ShowAddress) h.Append(Row(E(org.Address), $"font-size:{sm}px;"));
+        if (d.ShowOrgPhone && (org.Phone ?? "").Trim() != "") h.Append(Row("Tel. ogólny: " + E(org.Phone.Trim()), $"font-size:{sm}px;"));
         if (d.ShowNip && org.Nip.Trim() != "") h.Append(Row("NIP: " + E(org.Nip), $"font-size:{sm}px;"));
         if (d.ShowKrs && org.Krs.Trim() != "") h.Append(Row("KRS: " + E(org.Krs), $"font-size:{sm}px;"));
         var url = org.Website.Trim();
@@ -137,6 +139,7 @@ public static partial class SignatureRenderer
         l.Add("");
         Add(d.ShowOrg, org.OrgName);
         Add(d.ShowAddress, org.Address);
+        if (d.ShowOrgPhone && (org.Phone ?? "").Trim() != "") l.Add("Tel. ogólny: " + org.Phone.Trim());
         if (d.ShowNip && org.Nip.Trim() != "") l.Add("NIP: " + org.Nip.Trim());
         if (d.ShowKrs && org.Krs.Trim() != "") l.Add("KRS: " + org.Krs.Trim());
         Add(d.ShowWebsite, org.Website);
