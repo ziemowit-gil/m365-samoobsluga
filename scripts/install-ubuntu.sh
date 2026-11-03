@@ -48,7 +48,8 @@ if [[ "$REPO_DIR" == "$APP_DIR" || "$REPO_DIR" == "$APP_DIR"/* ]]; then
 fi
 
 echo "==> Pakiety systemowe"
-apt-get update -qq
+# Cudze, uszkodzone repozytoria (np. PPA bez wydania dla tej wersji Ubuntu) nie powinny przerywać instalacji.
+apt-get update -qq || echo "Ostrzeżenie: apt-get update zgłosił błędy (zob. wyżej). Kontynuuję, bo to zwykle cudze repozytoria." >&2
 apt-get install -y -qq curl ca-certificates libicu-dev >/dev/null
 
 if [[ ! -x "$DOTNET_DIR/dotnet" ]] || ! "$DOTNET_DIR/dotnet" --list-sdks | grep -q '^10\.'; then
