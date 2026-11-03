@@ -108,6 +108,17 @@ if (!useMock && configured)
     var types = builder.Configuration.GetSection("AzureAd:ClientCredentials").GetChildren().Select(c => c["SourceType"] ?? "").Where(t => t != "").ToList();
     foreach (var warning in CredentialPolicy.Evaluate(types, app.Environment.IsProduction()))
         app.Logger.LogWarning("{Warning}", warning);
+    if (types.Count == 0)
+    {
+        // Bez sekretu lub certyfikatu wymiana kodu logowania na tokeny zawsze się nie uda, a użytkownik krążyłby w pętli logowania.
+        app.Use(async (ctx, next) =>
+        {
+            if (ctx.Request.Path.StartsWithSegments("/_framework") || ctx.Request.Path.Value!.Contains('.')) { await next(); return; }
+            ctx.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            ctx.Response.ContentType = "text/html; charset=utf-8";
+            await ctx.Response.WriteAsync("<!DOCTYPE html><html lang=\"pl\"><head><meta charset=\"utf-8\"><title>Brak poświadczeń aplikacji</title></head><body style=\"font-family:sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;color:#1d1d1a\"><h1>Aplikacja nie jest jeszcze gotowa</h1><p>Brakuje sekretu klienta albo certyfikatu aplikacji. Administrator ustawia go w pliku <code>/etc/m365-samoobsluga.env</code> (zmienne <code>AzureAd__ClientCredentials__0__...</code>) i restartuje usługę. Szczegóły są w README, w sekcji o rejestracji aplikacji.</p></body></html>");
+        });
+    }
     CertificateInspector.LogExpiry(builder.Configuration, app.Logger, DateTimeOffset.UtcNow);
 }
 
