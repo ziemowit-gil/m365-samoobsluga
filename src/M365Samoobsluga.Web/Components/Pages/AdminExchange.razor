@@ -1,0 +1,118 @@
+@page "/admin/exchange"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "Admin")]
+@using System.Security.Cryptography.X509Certificates
+@inject M365Samoobsluga.Graph.Services.ExchangeSettingsProvider Provider
+@inject IExchangeRuleDeployer Deployer
+@inject M365Samoobsluga.Core.Audit.IAuditLog Audit
+@inject ICurrentUser User
+@inject IJSRuntime Js
+@inject UiGuard Guard
+<PageTitle>Administrator: Exchange · Samoobsługa poczty</PageTitle>
+<h1>Połączenie z Exchange</h1>
+<p>Kreator przygotowuje połączenie aplikacji z Exchange Online certyfikatem, bez użytkownika. Dzięki temu aplikacja może sama zakładać regułę stopki i czyścić podpisy. Przejdź kroki po kolei.</p>
+<p class="msg info">Aplikacja dostaje wąski dostęp: tylko reguły transportowe i opcje użytkownika, nie rolę Exchange Administrator. Kroki w Entra i w Exchange wykonuje administrator, bo wymagają jego uprawnień.</p>
+<Status Error="@error" Success="@ok" />
+
+<h2>Krok 1: certyfikat</h2>
+@if (Provider.HasCertificate)
+{
+    <p>Certyfikat jest wygenerowany@(certInfo is null ? "" : $": odcisk {certInfo.Thumbprint}, ważny do {certInfo.NotAfter:d.MM.yyyy}"). Klucz prywatny zostaje w pliku na serwerze, w katalogu <code>App_Data/exchange</code>, z prawami tylko dla konta usługi.</p>
+}
+else
+{
+    <p>Certyfikatu jeszcze nie ma. Aplikacja wygeneruje samopodpisany certyfikat (RSA 3072, ważny 2 lata) z losowym hasłem do pliku.</p>
+}
+<p>
+    <button type="button" disabled="@busy" @onclick="GenerateCertificate">@(Provider.HasCertificate ? "Wygeneruj nowy certyfikat" : "Wygeneruj certyfikat")</button>
+    <button type="button" class="secondary" disabled="@(!Provider.HasCertificate)" @onclick="DownloadCer">Pobierz certyfikat publiczny (.cer)</button>
+</p>
+@if (Provider.HasCertificate) { <p class="hint">Nowy certyfikat zastępuje poprzedni. Po wymianie wgraj nowy plik .cer w Entra, a stary usuń.</p> }
+
+<h2>Krok 2: rejestracja w Entra</h2>
+<p>W <a href="https://entra.microsoft.com" target="_blank" rel="noopener noreferrer">centrum administracyjnym Entra<span class="sr-only"> (otwiera się w nowej karcie)</span></a>:</p>
+<ol>
+    <li>Rejestracje aplikacji (App registrations) → Nowa rejestracja (New registration). Nazwa: <code>@M365Samoobsluga.Core.Services.ExchangeSetup.RegistrationName</code>, jedna dzierżawa (single tenant). Nie dodawaj adresów przekierowania.</li>
+    <li>Uprawnienia interfejsu API (API permissions) → Dodaj uprawnienie (Add a permission) → Interfejsy API używane przez moją organizację (APIs my organization uses) → <strong>Office 365 Exchange Online</strong> → Uprawnienia aplikacji (Application permissions) → <strong>Exchange.ManageAsApp</strong>.</li>
+    <li>Kliknij Udziel zgody administratora (Grant admin consent).</li>
+    <li>Certyfikaty i wpisy tajne (Certificates &amp; secrets) → Certyfikaty → Przekaż certyfikat (Upload certificate) i wskaż plik <code>.cer</code> pobrany w kroku 1.</li>
+    <li>Z karty Przegląd (Overview) skopiuj <strong>Identyfikator aplikacji (klienta)</strong> do następnego kroku.</li>
+</ol>
+
+<h2>Krok 3: identyfikatory</h2>
+<EditForm Model="m" OnSubmit="SaveSettings" FormName="exchange-ustawienia">
+    <div class="field"><label for="eid">Client ID rejestracji z kroku 2</label><input id="eid" type="text" autocomplete="off" @bind="m.AppId" /></div>
+    <div class="field">
+        <label for="eorg">Domena organizacji</label>
+        <p class="hint" id="eoh">Główna domena z końcówką onmicrosoft.com, np. firma.onmicrosoft.com. Tak wymaga Microsoft przy logowaniu aplikacji do Exchange.</p>
+        <input id="eorg" type="text" autocomplete="off" aria-describedby="eoh" @bind="m.Org" />
+    </div>
+    <button type="submit" disabled="@busy">Zapisz</button>
+</EditForm>
+
+<h2>Krok 4: rola w Exchange</h2>
+<p>Pobierz skrypt z gotowymi poleceniami i uruchom go jako administrator Exchange i Entra. Tworzy główną usługę oraz grupę ról z rolami „Transport Rules” i „User Options”, i dodaje do niej aplikację. Zmiany mogą się replikować 15 do 30 minut.</p>
+<p><button type="button" class="secondary" disabled="@(!HasSavedId)" @onclick="DownloadRoleScript">Pobierz skrypt roli (.ps1)</button></p>
+
+<h2>Krok 5: sprawdzenie połączenia</h2>
+<p>Aplikacja łączy się z Exchange certyfikatem i tylko odczytuje reguły transportowe.</p>
+<p><button type="button" disabled="@(busy || !Deployer.IsConfigured)" @onclick="TestConnection">Sprawdź połączenie</button></p>
+@if (!Deployer.IsConfigured) { <p class="hint">Najpierw wygeneruj certyfikat i zapisz identyfikatory (kroki 1 i 3). Do uruchamiania poleceń potrzebny jest PowerShell na serwerze (<code>scripts/install-exchange-tools-ubuntu.sh</code>).</p> }
+@if (testOutput is not null) { <pre class="preview" aria-label="Wynik sprawdzenia">@testOutput</pre> }
+<p>Gdy test się powiedzie, wejdź na stronę <a href="admin/stopka-outlook">Administrator: stopka w Outlooku</a> i włącz wdrażanie.</p>
+
+@code {
+    sealed class Form { public string AppId { get; set; } = ""; public string Org { get; set; } = ""; }
+    Form m = new(); string? error, ok, testOutput; bool busy; X509Certificate2? certInfo;
+    bool HasSavedId => ExchangeCommandBuilder.Validate(new ExchangeSettings { Enabled = true, AppId = m.AppId.Trim(), Organization = "x.pl", CertificatePath = "/x" }) is not { } e || !e.Contains("AppId");
+
+    protected override void OnInitialized()
+    {
+        var s = Provider.Get(); m = new Form { AppId = s.AppId, Org = s.Organization }; LoadCert();
+    }
+    void LoadCert() { try { certInfo = File.Exists(Provider.CerPath) ? X509CertificateLoader.LoadCertificateFromFile(Provider.CerPath) : null; } catch { certInfo = null; } }
+    void Log(string action, string? target, bool success = true) => Audit.Write(new M365Samoobsluga.Core.Audit.AuditEntry(DateTimeOffset.UtcNow, User.Current.UserPrincipalName, action, target, success, null));
+
+    async Task GenerateCertificate()
+    {
+        busy = true; ok = error = null;
+        error = await Guard.RunAsync(async () =>
+        {
+            var c = M365Samoobsluga.Core.Services.ExchangeSetup.GenerateCertificate("Samoobsluga poczty Exchange");
+            await Provider.SaveCertificateAsync(c);
+            LoadCert(); Log("exchange.certyfikat.generuj", c.Thumbprint);
+        });
+        if (error is null) ok = "Certyfikat wygenerowany. Pobierz plik .cer i wgraj go w Entra (krok 2).";
+        busy = false;
+    }
+    async Task DownloadCer()
+    {
+        if (File.Exists(Provider.CerPath)) await Js.InvokeVoidAsync("samoobsluga.downloadBase64", "samoobsluga-exchange.cer", Convert.ToBase64String(await File.ReadAllBytesAsync(Provider.CerPath)), "application/x-x509-ca-cert");
+    }
+    async Task SaveSettings()
+    {
+        ok = error = null;
+        var org = m.Org.Trim();
+        error = M365Samoobsluga.Core.Services.AzureSetup.ValidateClientId(m.AppId)
+            ?? (org.Length > 0 && System.Text.RegularExpressions.Regex.IsMatch(org, @"^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$") ? null : "Wpisz domenę organizacji, np. firma.onmicrosoft.com.");
+        if (error is not null) return;
+        await Provider.SaveAsync(m.AppId, org);
+        Log("exchange.ustawienia.zapis", m.AppId.Trim());
+        ok = "Identyfikatory zapisane.";
+    }
+    async Task DownloadRoleScript()
+    {
+        error = await Guard.RunAsync(async () =>
+            await Js.InvokeVoidAsync("samoobsluga.download", "Setup-ExchangeRole.ps1", M365Samoobsluga.Core.Services.ExchangeSetup.RoleScript(m.AppId.Trim()), "text/plain"));
+    }
+    async Task TestConnection()
+    {
+        busy = true; ok = error = testOutput = null;
+        ExchangeOpResult? r = null;
+        var err = await Guard.RunAsync(async () => r = await Deployer.TestAsync());
+        if (err is not null) error = err;
+        else if (r is { Success: true }) { ok = "Połączenie z Exchange działa."; testOutput = r.Output; }
+        else { error = "Nie udało się połączyć z Exchange."; testOutput = r?.Output; }
+        busy = false;
+    }
+}

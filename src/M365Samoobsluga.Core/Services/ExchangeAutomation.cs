@@ -37,6 +37,8 @@ public interface IExchangeRuleDeployer
 {
     /// <summary>Czy Exchange jest skonfigurowany (certyfikat, AppId, domena) i włączony.</summary>
     bool IsConfigured { get; }
+    /// <summary>Sprawdza połączenie z Exchange (tylko odczyt reguł transportowych).</summary>
+    Task<ExchangeOpResult> TestAsync(CancellationToken ct = default);
     Task<ExchangeOpResult> DeployAsync(string html, ExchangeRuleMode mode, CancellationToken ct = default);
     Task<ExchangeOpResult> RemoveAsync(CancellationToken ct = default);
     /// <summary>Czyści zapisane podpisy w skrzynkach (jedna skrzynka albo wszystkie), po zapisaniu kopii zapasowej.</summary>
@@ -68,6 +70,9 @@ public static partial class ExchangeCommandBuilder
 
     public static List<string> DeployArgs(ExchangeSettings s, string script, string htmlFile, ExchangeRuleMode mode)
     { var a = Common(s, script); a.AddRange(["-HtmlFile", htmlFile, "-Mode", mode.ToString(), "-Force"]); return a; }
+
+    public static List<string> TestArgs(ExchangeSettings s, string script) =>
+        ["-NoProfile", "-NonInteractive", "-File", script, "-AppId", s.AppId, "-CertificateFilePath", s.CertificatePath, "-Organization", s.Organization];
 
     public static List<string> RemoveArgs(ExchangeSettings s, string script)
     { var a = Common(s, script); a.AddRange(["-Remove", "-Force"]); return a; }

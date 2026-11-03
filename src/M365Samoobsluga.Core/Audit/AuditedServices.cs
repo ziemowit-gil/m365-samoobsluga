@@ -73,6 +73,7 @@ public sealed class AuditedExchangeRuleDeployer(IExchangeRuleDeployer inner, IAu
         log.Write(new AuditEntry(DateTimeOffset.UtcNow, user.Current.UserPrincipalName, action, target, r.Success, r.Success ? null : r.Output));
         return r;
     }
+    public Task<ExchangeOpResult> TestAsync(CancellationToken ct = default) => Run("exchange.test.polaczenia", null, () => inner.TestAsync(ct));
     public Task<ExchangeOpResult> DeployAsync(string html, ExchangeRuleMode mode, CancellationToken ct = default) => Run("exchange.regula.wdroz", mode.ToString(), () => inner.DeployAsync(html, mode, ct));
     public Task<ExchangeOpResult> RemoveAsync(CancellationToken ct = default) => Run("exchange.regula.usun", null, () => inner.RemoveAsync(ct));
     public Task<ExchangeOpResult> ClearSignaturesAsync(string? mailbox, bool all, CancellationToken ct = default) => Run("exchange.podpisy.czyszczenie", all ? "wszystkie skrzynki" : mailbox, () => inner.ClearSignaturesAsync(mailbox, all, ct));

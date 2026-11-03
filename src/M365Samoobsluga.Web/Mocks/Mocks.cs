@@ -118,6 +118,7 @@ public sealed class MockTemplateStore(SignatureTemplate initial) : ISignatureTem
 public sealed class MockExchangeDeployer : IExchangeRuleDeployer
 {
     public bool IsConfigured => true;
+    public Task<ExchangeOpResult> TestAsync(CancellationToken ct = default) => Task.FromResult(new ExchangeOpResult(true, "(demo) Połączenie działa. Reguł transportowych: 3."));
     public Task<ExchangeOpResult> DeployAsync(string html, ExchangeRuleMode mode, CancellationToken ct = default) =>
         Task.FromResult(ExchangeRuleBuilder.Validate(html) is { } e ? new ExchangeOpResult(false, e) : new ExchangeOpResult(true, $"(demo) Reguła utworzona lub zaktualizowana, tryb {mode}, {html.Length} znaków."));
     public Task<ExchangeOpResult> RemoveAsync(CancellationToken ct = default) => Task.FromResult(new ExchangeOpResult(true, "(demo) Reguła usunięta."));

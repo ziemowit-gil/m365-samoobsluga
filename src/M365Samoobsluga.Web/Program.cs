@@ -87,10 +87,12 @@ builder.Services.AddScoped<ISignatureTemplateStore>(sp =>
 // Reguła stopki w Exchange: wdrożenie, usunięcie i czyszczenie podpisów z poziomu aplikacji przez PowerShell (certyfikat aplikacji).
 var exchange = opts.GetSection("Exchange").Get<ExchangeSettings>() ?? new ExchangeSettings();
 builder.Services.AddSingleton(exchange);
+var exchangeProvider = new ExchangeSettingsProvider(exchange, dataDir);
+builder.Services.AddSingleton(exchangeProvider);
 builder.Services.AddSingleton<IExchangeAutomationStore>(new FileExchangeAutomationStore(Path.Combine(dataDir, "exchange-automation.json")));
 builder.Services.AddSingleton<PowerShellDeployerAccessor>(sp => new PowerShellDeployerAccessor(
     useMock ? new MockExchangeDeployer()
-            : new PowerShellExchangeRuleDeployer(exchange, Path.Combine(AppContext.BaseDirectory, "scripts"), dataDir, sp.GetRequiredService<ILogger<PowerShellExchangeRuleDeployer>>())));
+            : new PowerShellExchangeRuleDeployer(exchangeProvider, Path.Combine(AppContext.BaseDirectory, "scripts"), dataDir, sp.GetRequiredService<ILogger<PowerShellExchangeRuleDeployer>>())));
 builder.Services.AddScoped<IExchangeRuleDeployer>(sp =>
     new AuditedExchangeRuleDeployer(sp.GetRequiredService<PowerShellDeployerAccessor>().Raw, sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
 if (!useMock && configured) builder.Services.AddHostedService<ExchangeRuleSync>();

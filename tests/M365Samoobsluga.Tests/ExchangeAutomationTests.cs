@@ -80,6 +80,7 @@ public class ExchangeAutomationTests
     {
         public int Calls; public string? LastHtml; public ExchangeRuleMode LastMode;
         public bool IsConfigured => configured;
+        public Task<ExchangeOpResult> TestAsync(CancellationToken ct = default) => Task.FromResult(new ExchangeOpResult(true, ""));
         public Task<ExchangeOpResult> DeployAsync(string html, ExchangeRuleMode mode, CancellationToken ct = default) { Calls++; LastHtml = html; LastMode = mode; return Task.FromResult(new ExchangeOpResult(success, success ? "ok" : "błąd")); }
         public Task<ExchangeOpResult> RemoveAsync(CancellationToken ct = default) => Task.FromResult(new ExchangeOpResult(true, ""));
         public Task<ExchangeOpResult> ClearSignaturesAsync(string? m, bool a, CancellationToken ct = default) => Task.FromResult(new ExchangeOpResult(true, ""));
@@ -149,5 +150,77 @@ public class ExchangeAutomationTests
         var d = new FakeDeployer(false, true);
         Assert.Null(await ExchangeRuleSync.DeployIfNeededAsync(d, new MemAuto(new ExchangeAutomation(true, ExchangeRuleMode.Audit, null, null, null)), Tpl(), false, default));
         Assert.Equal(0, d.Calls);
+    }
+}
+
+public class ExchangeSetupTests
+{
+    [Fact]
+    public void Certyfikat_jest_poprawny_i_ma_haslo()
+    {
+        var c = ExchangeSetup.GenerateCertificate("test", 2);
+        Assert.True(c.Password.Length >= 24);
+        using var withKey = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadPkcs12(c.Pfx, c.Password);
+        Assert.True(withKey.HasPrivateKey);
+        Assert.Equal(c.Thumbprint, withKey.Thumbprint);
+        using var pub = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificate(c.Cer);
+        Assert.False(pub.HasPrivateKey);
+        Assert.Equal(c.Thumbprint, pub.Thumbprint);
+        Assert.InRange((c.NotAfter - DateTimeOffset.UtcNow).TotalDays, 700, 735);
+    }
+
+    [Fact]
+    public void Plik_pfx_bez_hasla_nie_otwiera_sie()
+    {
+        var c = ExchangeSetup.GenerateCertificate("test", 1);
+        Assert.ThrowsAny<Exception>(() => System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadPkcs12(c.Pfx, "zle-haslo"));
+    }
+
+    [Fact]
+    public void Certyfikaty_maja_rozne_hasla_i_odciski()
+    {
+        var a = ExchangeSetup.GenerateCertificate("a"); var b = ExchangeSetup.GenerateCertificate("b");
+        Assert.NotEqual(a.Password, b.Password); Assert.NotEqual(a.Thumbprint, b.Thumbprint);
+    }
+
+    [Fact]
+    public void Skrypt_roli_ma_wasne_role_i_client_id()
+    {
+        var s = ExchangeSetup.RoleScript("11111111-2222-3333-4444-555555555555");
+        Assert.Contains("$appId = '11111111-2222-3333-4444-555555555555'", s);
+        Assert.Contains("New-ServicePrincipal", s);
+        Assert.Contains("New-RoleGroup", s);
+        Assert.Contains("'Transport Rules','User Options'", s);
+        Assert.Contains("Add-RoleGroupMember", s);
+        Assert.DoesNotContain("Exchange Administrator", s.Replace("nie rolę Exchange Administrator", ""));
+    }
+
+    [Theory]
+    [InlineData("zly")]
+    [InlineData("'; Remove-Item /")]
+    public void Skrypt_roli_odrzuca_zly_client_id(string id) => Assert.Throws<ArgumentException>(() => ExchangeSetup.RoleScript(id));
+
+    [Fact]
+    public async Task Dostawca_ustawien_laczy_konfiguracje_z_zapisem_i_certyfikatem()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        try
+        {
+            var p = new M365Samoobsluga.Graph.Services.ExchangeSettingsProvider(new ExchangeSettings(), dir);
+            Assert.False(p.Get().Enabled);
+            await p.SaveAsync("11111111-2222-3333-4444-555555555555", "firma.onmicrosoft.com");
+            Assert.False(p.HasCertificate);
+            await p.SaveCertificateAsync(ExchangeSetup.GenerateCertificate("t"));
+            Assert.True(p.HasCertificate);
+            var s = p.Get();
+            Assert.True(s.Enabled);
+            Assert.Equal("firma.onmicrosoft.com", s.Organization);
+            Assert.Equal(p.PfxPath, s.CertificatePath);
+            Assert.Null(ExchangeCommandBuilder.Validate(s));
+            Assert.False(string.IsNullOrEmpty(p.ReadPassword(s)));
+            if (!OperatingSystem.IsWindows())
+                Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(p.PfxPath));
+        }
+        finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
 }

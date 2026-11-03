@@ -113,12 +113,15 @@ Na stronie Administrator: stopka w Outlooku aplikacja może sama założyć, zak
 
 Aplikacja uruchamia PowerShell (`scripts/Set-StopkaRule.ps1`, `scripts/Clear-UserSignatures.ps1`) z uwierzytelnianiem **certyfikatem aplikacji, bez użytkownika**. Argumenty trafiają do procesu jako lista (bez powłoki), szablon w pliku tymczasowym, a hasło do pliku certyfikatu tylko w zmiennej środowiskowej `M365_EXO_CERT_PASSWORD`. Każde wdrożenie, usunięcie i czyszczenie trafia do dziennika audytu.
 
-Przygotowanie (według dokumentacji [App-only authentication w Exchange Online PowerShell](https://learn.microsoft.com/powershell/exchange/app-only-auth-powershell-v2)):
-1. Na serwerze: `sudo ./scripts/install-exchange-tools-ubuntu.sh` (PowerShell 7 i moduł ExchangeOnlineManagement).
-2. Zalecana osobna rejestracja aplikacji tylko do Exchange. Dodaj do niej uprawnienie aplikacyjne `Exchange.ManageAsApp` (API: Office 365 Exchange Online) i zgodę administratora.
-3. Certyfikat samopodpisany (`openssl`, plik `.pfx` z hasłem), a jego część publiczną `.cer` wgraj do tej rejestracji.
-4. Nadaj głównej usłudze tej rejestracji **wąską** rolę: grupa ról Exchange z rolami „Transport Rules” i „User Options” (do podpisów), a nie Exchange Administrator ani Organization Management. Zmiany uprawnień i ról mogą się replikować 15 do 30 minut.
-5. W `/etc/m365-samoobsluga.env` dopisz hasło certyfikatu (`M365_EXO_CERT_PASSWORD=...`), a w konfiguracji (`Samoobsluga__Exchange__Enabled=true`, `Samoobsluga__Exchange__AppId`, `Samoobsluga__Exchange__CertificatePath`, `Samoobsluga__Exchange__Organization`) wskaż rejestrację i plik. Plik `.pfx` niech czyta tylko konto usługi (`chmod 600`).
+Przygotowanie robisz w kreatorze na stronie **Administrator: Exchange** (zgodnie z dokumentacją [App-only authentication w Exchange Online PowerShell](https://learn.microsoft.com/powershell/exchange/app-only-auth-powershell-v2)):
+0. Na serwerze: `sudo ./scripts/install-exchange-tools-ubuntu.sh` (PowerShell 7 i moduł ExchangeOnlineManagement).
+1. Kreator generuje samopodpisany certyfikat (RSA 3072, 2 lata) z losowym hasłem. Plik `.pfx` i hasło zostają w `App_Data/exchange` z prawami 600, a plik `.cer` pobierasz do Entra.
+2. W Entra tworzysz osobną rejestrację tylko do Exchange, dodajesz uprawnienie aplikacyjne **Office 365 Exchange Online → Exchange.ManageAsApp**, udzielasz zgody administratora i wgrywasz `.cer`.
+3. Wpisujesz w kreatorze Client ID tej rejestracji i domenę organizacji (`...onmicrosoft.com`).
+4. Pobierasz skrypt `Setup-ExchangeRole.ps1` i uruchamiasz go raz jako administrator: tworzy główną usługę oraz grupę ról z **wąskimi** rolami „Transport Rules” i „User Options” (nie Exchange Administrator ani Organization Management). Zmiany ról mogą się replikować 15 do 30 minut. Jeśli czyszczenie podpisów zgłosi brak uprawnień, dodaj jeszcze rolę „Mail Recipients”.
+5. Przyciskiem „Sprawdź połączenie” aplikacja łączy się certyfikatem i tylko odczytuje reguły transportowe.
+
+Zamiast kreatora możesz ustawić wszystko w konfiguracji (`Samoobsluga__Exchange__Enabled`, `__AppId`, `__CertificatePath`, `__Organization`, hasło do `.pfx` w `M365_EXO_CERT_PASSWORD`). Wartości zapisane w kreatorze mają pierwszeństwo.
 
 Czyszczenie podpisów zapisuje kopię zapasową w `App_Data/signature-backups/` i działa na ustawieniach podpisu zapisanych w Exchange (Outlook w przeglądarce). Podpisów zapisanych tylko na komputerze, w aplikacjach mobilnych ani zsynchronizowanych podpisów roamingowych Outlooka to nie usuwa. Microsoft nie ma dla nich wspieranego API, więc w takich przypadkach użytkownik usuwa podpis sam albo administrator wyłącza roaming signatures w organizacji (sprawdź aktualne opcje w dokumentacji Exchange).
 

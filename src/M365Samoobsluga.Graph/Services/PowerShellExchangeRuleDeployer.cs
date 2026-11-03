@@ -9,12 +9,18 @@ namespace M365Samoobsluga.Graph.Services;
 /// Wdraża regułę stopki i czyści podpisy przez PowerShell (moduł ExchangeOnlineManagement, uwierzytelnianie certyfikatem aplikacji bez użytkownika).
 /// Proces dostaje argumenty jako lista (bez powłoki), szablon w pliku tymczasowym, a hasło certyfikatu tylko w zmiennej środowiskowej procesu.
 /// </summary>
-public sealed class PowerShellExchangeRuleDeployer(ExchangeSettings settings, string scriptsDir, string dataDir, ILogger<PowerShellExchangeRuleDeployer> log) : IExchangeRuleDeployer
+public sealed class PowerShellExchangeRuleDeployer(ExchangeSettingsProvider provider, string scriptsDir, string dataDir, ILogger<PowerShellExchangeRuleDeployer> log) : IExchangeRuleDeployer
 {
+    private ExchangeSettings settings => provider.Get();
+
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(3);
 
     public bool IsConfigured => ExchangeCommandBuilder.Validate(settings) is null;
+
+    public Task<ExchangeOpResult> TestAsync(CancellationToken ct = default) =>
+        ExchangeCommandBuilder.Validate(settings) is { } err ? Task.FromResult(new ExchangeOpResult(false, err))
+            : RunAsync(ExchangeCommandBuilder.TestArgs(settings, Script("Test-ExchangeConnection.ps1")), ct);
 
     public async Task<ExchangeOpResult> DeployAsync(string html, ExchangeRuleMode mode, CancellationToken ct = default)
     {
@@ -51,9 +57,10 @@ public sealed class PowerShellExchangeRuleDeployer(ExchangeSettings settings, st
         await Gate.WaitAsync(ct);
         try
         {
-            var psi = new ProcessStartInfo(settings.PowerShellPath) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+            var cfg = settings;
+            var psi = new ProcessStartInfo(cfg.PowerShellPath) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
             foreach (var a in args) psi.ArgumentList.Add(a);
-            var pwd = Environment.GetEnvironmentVariable(settings.CertificatePasswordEnv);
+            var pwd = provider.ReadPassword(settings);
             if (!string.IsNullOrEmpty(pwd)) psi.Environment["M365_EXO_CERT_PASSWORD"] = pwd;
             using var p = Process.Start(psi) ?? throw new InvalidOperationException("Nie udało się uruchomić PowerShella.");
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -68,7 +75,7 @@ public sealed class PowerShellExchangeRuleDeployer(ExchangeSettings settings, st
             return new(p.ExitCode == 0, text.Length == 0 ? (p.ExitCode == 0 ? "Gotowe." : "Błąd bez komunikatu.") : text);
         }
         catch (System.ComponentModel.Win32Exception)
-        { return new(false, $"Nie znaleziono PowerShella ({settings.PowerShellPath}). Zainstaluj go skryptem scripts/install-exchange-tools-ubuntu.sh."); }
+        { return new(false, $"Nie znaleziono PowerShella ({provider.Get().PowerShellPath}). Zainstaluj go skryptem scripts/install-exchange-tools-ubuntu.sh."); }
         finally { Gate.Release(); }
     }
 }
