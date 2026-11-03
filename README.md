@@ -66,7 +66,7 @@ sudo ./scripts/setup-entra.sh --base-url https://ms365webpanel.feer.org.pl \
      --write-env /etc/m365-samoobsluga.env --write-azuread /opt/m365-samoobsluga/App_Data/azuread.json
 ```
 
-Potrzebujesz konta, które może rejestrować aplikacje i udzielać zgody administratora. Skrypt można uruchamiać ponownie: istniejące adresy zostają, a brakujące są dopisywane. Opcja `--require-assignment` włącza wymóg przypisania użytkowników do aplikacji. Skrypt napisałem na podstawie dokumentacji Azure CLI i sprawdziłem tylko składnię i tryb `--dry-run`, bez zmian w prawdziwej dzierżawie.
+Na Ubuntu zainstaluj `az` skryptem `scripts/install-azure-cli-ubuntu.sh` (obsługuje też wersje, dla których Microsoft nie ma jeszcze własnego repozytorium, np. 26.04). Jeśli rejestrację zrobiłeś już ręcznie albo przez stronę /setup, podaj jej Client ID opcją `--app-id`, żeby skrypt nie tworzył drugiej. Potrzebujesz konta, które może rejestrować aplikacje i udzielać zgody administratora. Skrypt można uruchamiać ponownie: istniejące adresy zostają, a brakujące są dopisywane. Opcja `--require-assignment` włącza wymóg przypisania użytkowników do aplikacji. Skrypt napisałem na podstawie dokumentacji Azure CLI i sprawdziłem tylko składnię i tryb `--dry-run`, bez zmian w prawdziwej dzierżawie.
 
 ## Logowanie aplikacji certyfikatem
 
