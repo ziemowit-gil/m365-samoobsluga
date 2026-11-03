@@ -132,6 +132,73 @@ Testy: `dotnet test`.
 4. Udostępnij zapisywalny katalog `App_Data` i rób jego kopie zapasowe.
 5. Przy kilku instancjach zamień pamięciowy cache tokenów (`AddInMemoryTokenCaches`) na rozproszony (`AddDistributedTokenCaches`) i użyj wspólnego magazynu kluczy Data Protection.
 
+## Ubuntu: uruchomienie i usługa systemowa
+
+Instalacja .NET 10 (skrypt Microsoftu działa na każdej wersji Ubuntu):
+
+```bash
+sudo apt update && sudo apt install -y curl git libicu-dev
+curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
+bash dotnet-install.sh --channel 10.0 --install-dir "$HOME/.dotnet"
+export DOTNET_ROOT="$HOME/.dotnet" PATH="$HOME/.dotnet:$PATH"
+```
+
+Uruchomienie (jak w sekcji „Uruchomienie lokalne”): `git clone`, `cd m365-samoobsluga`, `dotnet run --project src/M365Samoobsluga.Web` i adres `http://localhost:30375`.
+
+Na serwerze opublikuj aplikację i uruchom ją jako usługę systemd, a przed nią postaw nginx z HTTPS:
+
+```bash
+dotnet publish src/M365Samoobsluga.Web -c Release -o /opt/m365-samoobsluga
+sudo useradd --system --home /opt/m365-samoobsluga m365app
+sudo chown -R m365app: /opt/m365-samoobsluga
+```
+
+Plik `/etc/systemd/system/m365-samoobsluga.service`:
+
+```ini
+[Unit]
+Description=Samoobsluga poczty Microsoft 365
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/m365-samoobsluga
+ExecStart=/home/<uzytkownik>/.dotnet/dotnet /opt/m365-samoobsluga/M365Samoobsluga.Web.dll
+Restart=always
+User=m365app
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:30375
+Environment=Samoobsluga__UseMockServices=false
+Environment=Samoobsluga__Admins__0=twoj.login@example.org
+EnvironmentFile=/etc/m365-samoobsluga.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Sekrety daj do `/etc/m365-samoobsluga.env` (`chmod 600`, właściciel root), na przykład `AzureAd__ClientCredentials__0__SourceType=ClientSecret` i `AzureAd__ClientCredentials__0__ClientSecret=...`. Na produkcji lepszy jest certyfikat (sekcja „Logowanie aplikacji certyfikatem”). Potem:
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl enable --now m365-samoobsluga
+sudo journalctl -u m365-samoobsluga -f   # tu zobaczysz kod konfiguracji
+```
+
+Fragment nginx (certyfikat np. z Let's Encrypt). Blazor potrzebuje WebSocketów:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:30375;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 100s;
+}
+```
+
+Adresy w Entra podajesz wtedy z domeną: `https://twoja-domena/signin-oidc` i pozostałe z tabeli wyżej.
+
 ## Bezpieczeństwo
 
 - Aplikacja nie przechowuje haseł ani tokenów poza mechanizmami frameworka (ciasteczko sesji, pamięciowy cache tokenów).

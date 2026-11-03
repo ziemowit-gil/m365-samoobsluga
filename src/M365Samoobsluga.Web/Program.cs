@@ -21,6 +21,10 @@ var configured = AzureSetup.IsConfigured(builder.Configuration["AzureAd:TenantId
 var setupMode = !useMock && !configured;
 builder.Services.AddSingleton(new SetupState(setupMode, setupMode ? SetupState.NewCode() : ""));
 
+// Za reverse proxy (nginx) na tym samym hoście: bierzemy schemat i adres klienta z nagłówków X-Forwarded-*.
+// Domyślnie ufamy tylko proxy na loopbacku. Inne adresy proxy dodaj w KnownProxies, zanim je włączysz.
+builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(o =>
+    o.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
 
@@ -92,6 +96,7 @@ builder.Services.AddAuthorizationBuilder().AddPolicy("Admin", p => p.RequireAsse
         ctx.User.FindFirst("preferred_username")?.Value ?? "", null))));
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 
 if (setupMode)
 {
