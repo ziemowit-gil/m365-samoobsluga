@@ -132,3 +132,13 @@ public sealed class MockNoticeMailer : INoticeMailer
     public Task SendAsync(string to, string subject, string html, CancellationToken ct = default) =>
         StopkaNotice.IsValidEmail(to) ? Task.CompletedTask : throw new UserFacingException("Niepoprawny adres odbiorcy.");
 }
+
+public sealed class MockDirectoryUsers : IDirectoryUsers
+{
+    public Task<IReadOnlyList<string>> ListAddressesAsync(string domain, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<string>>(StopkaNotice.SelectDomainAddresses(
+        [
+            new("anna.nowak@feer.org.pl", null, "Member"), new("jan.kowalski@feer.org.pl", null, "Member"),
+            new(null, "ola.wolontariuszka@feer.org.pl", "Member"), new("gosc@example.org", "gosc_example.org#EXT#@feer.org.pl", "Guest"),
+        ], domain));
+}

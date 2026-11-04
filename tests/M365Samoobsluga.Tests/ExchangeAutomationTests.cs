@@ -295,5 +295,29 @@ public class StopkaNoticeTests
     }
 
     [Fact]
+    public void Adresy_z_katalogu_tylko_czlonkowie_z_domeny_bez_powtorzen()
+    {
+        var users = new DirectoryUser[]
+        {
+            new("Jan@feer.org.pl", "jan@feer.org.pl", "Member"),
+            new(null, "ola@feer.org.pl", "Member"),
+            new("anna@feer.org.pl", null, null),
+            new("anna@feer.org.pl", null, "Member"),
+            new("obcy@example.org", "obcy@feer.org.pl", "Member"),
+            new("gosc@example.org", "gosc_example.org#EXT#@feer.org.pl", "Guest"),
+            new(null, null, "Member"),
+            new("zly adres@feer.org.pl", null, "Member"),
+        };
+        Assert.Equal(["anna@feer.org.pl", "jan@feer.org.pl", "ola@feer.org.pl"], StopkaNotice.SelectDomainAddresses(users, "@FEER.org.pl"));
+    }
+
+    [Fact]
+    public void Pusta_domena_nic_nie_zwraca() => Assert.Empty(StopkaNotice.SelectDomainAddresses([new("a@b.pl", null, null)], " "));
+
+    [Fact]
+    public void Domena_nie_pasuje_do_koncowki_innej_domeny() =>
+        Assert.Empty(StopkaNotice.SelectDomainAddresses([new("a@nie-feer.org.pl", null, null)], "feer.org.pl"));
+
+    [Fact]
     public void Domyslna_tresc_ma_link() => Assert.Contains(StopkaNotice.LinkToken, StopkaNotice.DefaultBody);
 }

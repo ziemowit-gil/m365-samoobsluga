@@ -39,6 +39,7 @@ public static partial class AzureSetup
     /// <summary>Uprawnienia opcjonalne: aplikacja prosi o nie dopiero przy użyciu funkcji, więc zgodę wyraża tylko osoba, która z niej korzysta.</summary>
     public static readonly IReadOnlyList<AzurePermission> OptionalPermissions =
     [
+        new("User.ReadBasic.All", "Wczytanie adresów osób z domeny jako odbiorców powiadomienia o stopce (strona Administrator: powiadomienie). Tylko odczyt podstawowych danych katalogu."),
         new("Mail.Send", "Powiadomienia o stopce (strona Administrator: powiadomienie) i potwierdzenie e-mailem po zapisaniu własnej stopki. Wiadomość wychodzi ze skrzynki zalogowanej osoby."),
     ];
 

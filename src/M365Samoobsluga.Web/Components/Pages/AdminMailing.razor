@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Policy = "Admin")]
 @inject INoticeMailer Mailer
+@inject IDirectoryUsers Directory
 @inject ISignatureTemplateStore Store
 @inject ICurrentUser User
 @inject NavigationManager Nav
@@ -18,6 +19,12 @@
         <label for="body">Treść</label>
         <p class="hint" id="bh">Akapity oddzielaj pustą linią. Zapis <code>{link}</code> zamieni się na adres aplikacji (strona Stopka).</p>
         <textarea id="body" aria-describedby="bh" maxlength="5000" @bind="m.Body" @bind:event="oninput"></textarea>
+    </div>
+    <div class="field">
+        <label for="dom">Domena</label>
+        <p class="hint" id="dh">Adresy osób z tej domeny wczytasz z katalogu Microsoft 365 jednym kliknięciem (bez gości). Listę możesz potem poprawić ręcznie.</p>
+        <input id="dom" type="text" autocomplete="off" aria-describedby="dh" @bind="m.Domain" />
+        <p><button type="button" class="secondary" disabled="@busy" @onclick="LoadDomain">Wczytaj wszystkich z domeny</button></p>
     </div>
     <div class="field">
         <label for="rcp">Odbiorcy</label>
@@ -51,6 +58,7 @@
         public string Subject { get; set; } = StopkaNotice.DefaultSubject;
         public string Body { get; set; } = StopkaNotice.DefaultBody;
         public string Recipients { get; set; } = "";
+        public string Domain { get; set; } = "";
     }
     sealed record Result(string To, bool Ok, string? Error);
     Form m = new(); SignatureTemplate template = new(new(), new()); List<Result> results = [];
@@ -60,7 +68,26 @@
     bool SubjectBodyOk => StopkaNotice.Validate(m.Subject, m.Body, new ParsedRecipients(["x@example.org"], [], 0)) is null;
     string Html => StopkaNotice.BuildHtml(m.Body, M365Samoobsluga.Core.Services.AzureSetup.ResolveAppUrl(Config["Samoobsluga:PublicUrl"], Nav.BaseUri) + "stopka", template);
 
-    protected override async Task OnInitializedAsync() => error = await Guard.RunAsync(async () => template = await Store.GetAsync());
+    protected override async Task OnInitializedAsync()
+    {
+        m.Domain = Config["Samoobsluga:DefaultAliasDomain"] ?? "";
+        error = await Guard.RunAsync(async () => template = await Store.GetAsync());
+    }
+
+    async Task LoadDomain()
+    {
+        busy = true; error = ok = null;
+        var domain = m.Domain.Trim().TrimStart('@');
+        if (!System.Text.RegularExpressions.Regex.IsMatch(domain, @"^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")) { error = "Wpisz domenę, np. feer.org.pl."; busy = false; return; }
+        IReadOnlyList<string> found = [];
+        error = await Guard.RunAsync(async () => found = await Directory.ListAddressesAsync(domain));
+        if (error is null)
+        {
+            if (found.Count == 0) error = $"Nie znaleziono osób z domeną {domain}.";
+            else { m.Recipients = string.Join("\n", found); confirmed = false; ok = $"Wczytano {found.Count} adresów z domeny {domain}. Przejrzyj listę i usuń konta, które nie powinny dostać wiadomości (techniczne, współdzielone)."; }
+        }
+        busy = false;
+    }
     void Noop() { }
 
     async Task SendTest() => await Send([User.Current.UserPrincipalName], "Wiadomość próbna została wysłana na twój adres.");

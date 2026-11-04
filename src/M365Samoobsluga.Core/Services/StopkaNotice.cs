@@ -10,6 +10,14 @@ public interface INoticeMailer
     Task SendAsync(string to, string subject, string html, CancellationToken ct = default);
 }
 
+public sealed record DirectoryUser(string? Mail, string? UserPrincipalName, string? UserType);
+
+public interface IDirectoryUsers
+{
+    /// <summary>Adresy e-mail osób z katalogu z podaną domeną (delegowane User.ReadBasic.All, zakres dobierany przy użyciu).</summary>
+    Task<IReadOnlyList<string>> ListAddressesAsync(string domain, CancellationToken ct = default);
+}
+
 public sealed record ParsedRecipients(IReadOnlyList<string> Valid, IReadOnlyList<string> Invalid, int Duplicates);
 
 /// <summary>Powiadomienie dla użytkowników, że ustawiono im jednolitą stopkę. Czysta logika: treść, podgląd, lista odbiorców.</summary>
@@ -35,6 +43,21 @@ public static partial class StopkaNotice
     }
 
     [GeneratedRegex(@"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$")] private static partial Regex EmailRx();
+
+    /// <summary>
+    /// Wybiera adresy z listy osób katalogu: tylko członkowie (bez gości), adres z pola mail albo UPN, z podaną domeną,
+    /// małymi literami, bez powtórzeń, posortowane. Konta bez adresu w tej domenie są pomijane.
+    /// </summary>
+    public static IReadOnlyList<string> SelectDomainAddresses(IEnumerable<DirectoryUser> users, string domain)
+    {
+        var d = (domain ?? "").Trim().TrimStart('@').ToLowerInvariant();
+        if (d == "") return [];
+        return users
+            .Where(u => !string.Equals(u.UserType, "Guest", StringComparison.OrdinalIgnoreCase) && !(u.UserPrincipalName ?? "").Contains("#EXT#", StringComparison.OrdinalIgnoreCase))
+            .Select(u => (!string.IsNullOrWhiteSpace(u.Mail) ? u.Mail! : u.UserPrincipalName ?? "").Trim().ToLowerInvariant())
+            .Where(a => IsValidEmail(a) && a.EndsWith("@" + d, StringComparison.Ordinal))
+            .Distinct().OrderBy(a => a, StringComparer.Ordinal).ToList();
+    }
 
     public static bool IsValidEmail(string? v) => v is { Length: <= 254 } s && EmailRx().IsMatch(s.Trim());
 

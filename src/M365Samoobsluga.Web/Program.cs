@@ -104,6 +104,8 @@ builder.Services.AddScoped<INoticeMailer>(sp => new AuditedNoticeMailer(
     useMock ? new MockNoticeMailer() : new GraphNoticeMailer(sp.GetRequiredService<Microsoft.Graph.GraphServiceClient>()),
     sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
 
+builder.Services.AddScoped<IDirectoryUsers>(sp => useMock ? new MockDirectoryUsers() : new GraphDirectoryUsers(sp.GetRequiredService<Microsoft.Graph.GraphServiceClient>()));
+
 // Reguła stopki w Exchange: wdrożenie, usunięcie i czyszczenie podpisów z poziomu aplikacji przez PowerShell (certyfikat aplikacji).
 var exchange = opts.GetSection("Exchange").Get<ExchangeSettings>() ?? new ExchangeSettings();
 builder.Services.AddHttpClient();
