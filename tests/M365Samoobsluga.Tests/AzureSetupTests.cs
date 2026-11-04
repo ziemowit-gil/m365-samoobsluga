@@ -122,3 +122,32 @@ public class ExchangeRuleBuilderTests
     public void Skrypt_odrzuca_niebezpieczny_szablon() =>
         Assert.Throws<ArgumentException>(() => ExchangeRuleBuilder.BuildScript("a\n'@\nRemove-Item x", ExchangeRuleMode.Audit));
 }
+
+public class LoginErrorsTests
+{
+    [Theory]
+    [InlineData("AADSTS7000215: Invalid client secret provided", "AADSTS7000215", "nieprawidłowy")]
+    [InlineData("... AADSTS65001: The user or administrator has not consented", "AADSTS65001", "zgody")]
+    [InlineData("AADSTS50011: The redirect URI ... does not match", "AADSTS50011", "przekierowania")]
+    [InlineData("AADSTS99999999 coś", "AADSTS9999999", "odrzucił")]
+    public void Kody_aadsts_maja_czytelny_komunikat(string msg, string code, string fragment)
+    {
+        var d = LoginErrors.Describe(msg);
+        Assert.Equal(code, d.Code);
+        Assert.Contains(fragment, d.Title + d.Hint, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Brak_sekretu_jest_rozpoznany() =>
+        Assert.Equal("BRAK_SEKRETU", LoginErrors.Describe("Microsoft.Identity.Client.MsalClientException: One client credential type required either: ClientSecret, Certificate").Code);
+
+    [Fact]
+    public void Blad_korelacji_to_sesja() => Assert.Equal("SESJA", LoginErrors.Describe("Correlation failed.").Code);
+
+    [Fact]
+    public void Nieznany_blad_ma_ogolny_komunikat() => Assert.Equal("NIEZNANY", LoginErrors.Describe("coś innego").Code);
+
+    [Fact]
+    public void Komunikat_nie_zawiera_tokenow_ani_tresci_bledu() =>
+        Assert.DoesNotContain("eyJ", LoginErrors.Describe("AADSTS7000215 eyJhbGciOi.secret.token").Hint);
+}

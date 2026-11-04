@@ -37,6 +37,21 @@ if (!useMock && configured)
         .AddMicrosoftGraph(builder.Configuration.GetSection("DownstreamApis:MicrosoftGraph"))
         .AddInMemoryTokenCaches();
     builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
+    // Błąd w powrocie z logowania: zapisujemy przyczynę w logu i pokazujemy czytelną stronę zamiast ogólnego ekranu błędu.
+    builder.Services.PostConfigure<Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectOptions>(
+        Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectDefaults.AuthenticationScheme, o =>
+        {
+            o.Events.OnRemoteFailure = ctx =>
+            {
+                var message = ctx.Failure?.Message ?? "";
+                var info = LoginErrors.Describe(message);
+                ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Logowanie")
+                    .LogError("Logowanie nie powiodło się ({Code}): {Message}", info.Code, message.Length > 400 ? message[..400] : message);
+                ctx.HandleResponse();
+                ctx.Response.Redirect("/logowanie-blad?kod=" + Uri.EscapeDataString(info.Code));
+                return Task.CompletedTask;
+            };
+        });
     builder.Services.AddScoped<MicrosoftIdentityConsentAndConditionalAccessHandler>();
     builder.Services.AddAuthorization(o => o.FallbackPolicy = o.DefaultPolicy);
     builder.Services.AddScoped<ICurrentUser, CurrentUser>();

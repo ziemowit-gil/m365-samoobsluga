@@ -1,0 +1,16 @@
+@page "/logowanie-blad"
+@attribute [AllowAnonymous]
+@using M365Samoobsluga.Core.Services
+<PageTitle>Logowanie nie powiodło się · Samoobsługa poczty</PageTitle>
+<h1>Logowanie nie powiodło się</h1>
+<p class="msg error" role="alert">@info.Title</p>
+<p>@info.Hint</p>
+@if (!string.IsNullOrEmpty(Kod)) { <p>Kod dla administratora: <code>@info.Code</code></p> }
+<p><a href="">Spróbuj zalogować się ponownie</a></p>
+@code {
+    [SupplyParameterFromQuery(Name = "kod")] public string? Kod { get; set; }
+    LoginErrors.Described info = new("", "", "");
+    // Strona dostaje tylko skrócony kod (AADSTS..., SESJA itd.), więc nie da się przez nią wstrzyknąć treści.
+    protected override void OnParametersSet() => info = LoginErrors.Describe(Kod is { Length: <= 40 } k && System.Text.RegularExpressions.Regex.IsMatch(k, "^[A-Za-z0-9_]+$") ? (k.StartsWith("AADSTS") ? k : KindToMessage(k)) : "");
+    static string KindToMessage(string k) => k switch { "SESJA" => "Correlation failed", "BRAK_SEKRETU" => "Client_Credentials_Required", _ => "" };
+}
