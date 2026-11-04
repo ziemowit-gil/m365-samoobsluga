@@ -31,7 +31,7 @@ else
 @code {
     sealed class Form { public string Tenant { get; set; } = ""; public string Client { get; set; } = ""; public string Code { get; set; } = ""; }
     Form m = new(); string? error; bool done; string baseUrl = "";
-    protected override void OnInitialized() => baseUrl = new Uri(Nav.BaseUri).GetLeftPart(UriPartial.Authority) + "/";
+    protected override void OnInitialized() => baseUrl = M365Samoobsluga.Core.Services.AzureSetup.ResolveAppUrl(Config["Samoobsluga:PublicUrl"], Nav.BaseUri);
     void Save()
     {
         error = null;

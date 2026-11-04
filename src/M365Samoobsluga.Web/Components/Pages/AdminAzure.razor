@@ -22,7 +22,7 @@
     protected override void OnInitialized()
     {
         m = new Form { Tenant = Config["AzureAd:TenantId"] ?? "", Client = Config["AzureAd:ClientId"] ?? "" };
-        baseUrl = new Uri(Nav.BaseUri).GetLeftPart(UriPartial.Authority) + "/";
+        baseUrl = M365Samoobsluga.Core.Services.AzureSetup.ResolveAppUrl(Config["Samoobsluga:PublicUrl"], Nav.BaseUri);
     }
     void Save()
     {

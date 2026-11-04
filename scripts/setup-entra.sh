@@ -32,7 +32,7 @@ SCOPES=(User.Read MailboxSettings.ReadWrite User-PasswordProfile.ReadWrite.All U
 usage() {
   cat <<EOF
 Użycie: $0 --base-url <https://adres-aplikacji> [opcje]
-  --base-url <adres>        adres aplikacji, np. https://ms365webpanel.feer.org.pl lub http://localhost:30375 (wymagane)
+  --base-url <adres>        adres aplikacji, np. https://ms365webpanel.feer.org.pl lub http://localhost:30375 (gdy pominięty, skrypt ustala go z usługi i nginx na serwerze)
   --app-id <Client ID>      użyj istniejącej rejestracji (zamiast szukać po nazwie lub tworzyć nową)
   --name <nazwa>            nazwa rejestracji (domyślnie: $NAME)
   --cert <plik.pem|.cer>    dodaj certyfikat zamiast tworzyć sekret klienta (zalecane na produkcji)
@@ -65,7 +65,16 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ $WITH_MAIL_SEND -eq 1 ]] && SCOPES+=(Mail.Send)
-[[ -n "$BASE_URL" ]] || { echo "Brak --base-url." >&2; usage >&2; exit 2; }
+# Bez --base-url próbujemy ustalić adres aplikacji z usługi systemd (Samoobsluga__PublicUrl) albo z konfiguracji nginx.
+if [[ -z "$BASE_URL" ]] && command -v systemctl >/dev/null 2>&1; then
+  BASE_URL="$(systemctl show -p Environment --value m365-samoobsluga 2>/dev/null | tr ' ' '\n' | sed -n 's/^Samoobsluga__PublicUrl=//p' | head -1)"
+  if [[ -z "$BASE_URL" && -f /etc/nginx/sites-available/m365-samoobsluga ]]; then
+    host="$(sed -n 's/^[[:space:]]*server_name[[:space:]]\+\([^; ]*\);.*/\1/p' /etc/nginx/sites-available/m365-samoobsluga | head -1)"
+    [[ -n "$host" ]] && BASE_URL="https://$host"
+  fi
+  [[ -n "$BASE_URL" ]] && echo "Wykryty adres aplikacji: $BASE_URL"
+fi
+[[ -n "$BASE_URL" ]] || { echo "Brak --base-url i nie udało się ustalić adresu aplikacji." >&2; usage >&2; exit 2; }
 if [[ "$BASE_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?/?$ || "$BASE_URL" =~ ^http://(localhost|127\.0\.0\.1)(:[0-9]+)?/?$ ]]; then :; else
   echo "Adres musi mieć postać https://host[:port] (http tylko dla localhost): $BASE_URL" >&2; exit 2
 fi

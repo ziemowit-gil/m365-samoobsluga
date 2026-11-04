@@ -61,6 +61,15 @@ public class AzureSetupTests
         Assert.Equal(4, AzureSetup.RequiredPermissions.Count);
     }
 
+    [Theory]
+    [InlineData("https://poczta.example.org", "http://localhost:30375/", "https://poczta.example.org/")]
+    [InlineData("", "https://z-zadania.example.org/strona", "https://z-zadania.example.org/")]
+    [InlineData(null, "http://localhost:30375/", "http://localhost:30375/")]
+    [InlineData("http://zly-nie-localhost.pl", "https://z-zadania.example.org/", "https://z-zadania.example.org/")]
+    [InlineData("nie adres", "https://z-zadania.example.org/", "https://z-zadania.example.org/")]
+    public void Adres_aplikacji_z_konfiguracji_albo_z_zadania(string? configured, string request, string expected) =>
+        Assert.Equal(expected, AzureSetup.ResolveAppUrl(configured, request));
+
     [Fact]
     public void Adresy_do_azure_dopisuja_ukosnik() =>
         Assert.Equal("https://p.example.org/signin-oidc", AzureSetup.RedirectUris("https://p.example.org")[0].Value);

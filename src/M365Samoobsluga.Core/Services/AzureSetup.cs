@@ -45,6 +45,17 @@ public static partial class AzureSetup
         new("UserAuthenticationMethod.ReadWrite", "Lista i usuwanie własnych metod weryfikacji dwuetapowej."),
     ];
 
+    /// <summary>
+    /// Adres aplikacji: najpierw ustawiony jawnie (Samoobsluga:PublicUrl), a gdy go brak lub jest niepoprawny, adres z bieżącego żądania
+    /// (za reverse proxy poprawny dzięki nagłówkom X-Forwarded-*). Zwraca postać schemat://host[:port]/.
+    /// </summary>
+    public static string ResolveAppUrl(string? configured, string requestBaseUri)
+    {
+        var (url, _) = NormalizeBaseUrl(configured);
+        if (url is not null) return url;
+        return NormalizeBaseUrl(requestBaseUri).Url ?? requestBaseUri;
+    }
+
     /// <summary>Adresy do wpisania w Azure dla danego adresu aplikacji (zob. README: rejestracja aplikacji).</summary>
     public static IReadOnlyList<AzureUri> RedirectUris(string baseUrl)
     {

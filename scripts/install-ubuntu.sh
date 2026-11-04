@@ -99,6 +99,7 @@ Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://127.0.0.1:$PORT
 Environment=Samoobsluga__UseMockServices=false
 Environment=Samoobsluga__Admins__0=$ADMIN
+${DOMAIN:+Environment=Samoobsluga__PublicUrl=https://$DOMAIN}
 EnvironmentFile=$ENV_FILE
 NoNewPrivileges=true
 ProtectSystem=full

@@ -5,6 +5,7 @@
 @inject ISignatureTemplateStore Store
 @inject ICurrentUser User
 @inject NavigationManager Nav
+@inject IConfiguration Config
 @inject UiGuard Guard
 <PageTitle>Administrator: powiadomienie o stopce · Samoobsługa poczty</PageTitle>
 <h1>Powiadomienie o stopce</h1>
@@ -57,7 +58,7 @@
     ParsedRecipients parsed => StopkaNotice.ParseRecipients(m.Recipients);
     string? Validation => StopkaNotice.Validate(m.Subject, m.Body, parsed);
     bool SubjectBodyOk => StopkaNotice.Validate(m.Subject, m.Body, new ParsedRecipients(["x@example.org"], [], 0)) is null;
-    string Html => StopkaNotice.BuildHtml(m.Body, Nav.BaseUri + "stopka", template);
+    string Html => StopkaNotice.BuildHtml(m.Body, M365Samoobsluga.Core.Services.AzureSetup.ResolveAppUrl(Config["Samoobsluga:PublicUrl"], Nav.BaseUri) + "stopka", template);
 
     protected override async Task OnInitializedAsync() => error = await Guard.RunAsync(async () => template = await Store.GetAsync());
     void Noop() { }
