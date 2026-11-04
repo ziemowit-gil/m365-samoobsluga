@@ -54,6 +54,7 @@ else
         <button type="button" class="secondary" disabled="@(!Deployer.IsConfigured || execBusy)" @onclick="RemoveRule">Usuń regułę</button>
     </p>
     @if (auto.LastDeployedAt is not null) { <p>Ostatnie wdrożenie: @auto.LastDeployedAt.Value.ToLocalTime().ToString("d.MM.yyyy HH:mm"). @auto.LastResult</p> }
+    @if (execOk is not null) { <p><a href="admin/mailing">Wyślij użytkownikom powiadomienie, że ustawiono im stopkę</a></p> }
     @if (execOutput is not null) { <pre class="preview" aria-label="Wynik polecenia">@execOutput</pre> }
 
     <h2>Czyszczenie już wpisanych podpisów</h2>

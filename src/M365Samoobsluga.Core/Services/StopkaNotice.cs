@@ -24,6 +24,16 @@ public static partial class StopkaNotice
         "Co zrobić: sprawdź, czy stanowisko i numer telefonu w profilu są aktualne. Jeśli w Outlooku masz własny podpis, usuń go, żeby stopka się nie powtarzała. Swoje dane i podgląd stopki zobaczysz tutaj: {link}\n\n" +
         "Tak wygląda stopka:";
 
+    public const string SelfSubject = "Zapisano dane do Twojej stopki";
+
+    /// <summary>Potwierdzenie dla osoby, która sama zapisała swoje dane do stopki: co zapisała i jak wygląda jej stopka.</summary>
+    public static (string Subject, string Html) BuildSelfConfirmation(SignaturePerson person, string appLink, SignatureTemplate template)
+    {
+        var body = "Dzień dobry,\n\nzapisałeś dane do swojej stopki. Stanowisko: " + (person.Title == "" ? "brak" : person.Title)
+                 + ". Telefon: " + (person.Phone == "" ? "brak" : person.Phone) + ".\n\nZmienisz je na stronie " + LinkToken + "\n\nTak wygląda Twoja stopka:";
+        return (SelfSubject, BuildHtml(body, appLink, template, person));
+    }
+
     [GeneratedRegex(@"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$")] private static partial Regex EmailRx();
 
     public static bool IsValidEmail(string? v) => v is { Length: <= 254 } s && EmailRx().IsMatch(s.Trim());
@@ -56,12 +66,12 @@ public static partial class StopkaNotice
     }
 
     /// <summary>Składa wiadomość HTML. Tekst administratora jest kodowany, {link} zamieniany na adres aplikacji, a pod nim wstawiany przykład stopki.</summary>
-    public static string BuildHtml(string body, string appLink, SignatureTemplate template)
+    public static string BuildHtml(string body, string appLink, SignatureTemplate template, SignaturePerson? person = null)
     {
         var encodedLink = WebUtility.HtmlEncode(appLink);
         var paragraphs = body.Replace("\r\n", "\n").Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
             .Select(p => WebUtility.HtmlEncode(p.Trim()).Replace("\n", "<br>").Replace(WebUtility.HtmlEncode(LinkToken), $"<a href=\"{encodedLink}\">{encodedLink}</a>"));
-        var sample = new SignaturePerson("Imię Nazwisko", "Stanowisko", "+48 600 000 000", "twoj.adres@example.org");
+        var sample = person ?? new SignaturePerson("Imię Nazwisko", "Stanowisko", "+48 600 000 000", "twoj.adres@example.org");
         var signature = SignatureRenderer.RenderHtml(template.Org, template.Design, sample);
         return "<html><body style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1d1d1a;\">"
              + string.Concat(paragraphs.Select(p => "<p>" + p + "</p>"))

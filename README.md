@@ -59,7 +59,7 @@ Każda zmiana trafia do dziennika jako JSON (`AUDYT {...}`: czas UTC, UPN, akcja
 
 Strona Administrator: powiadomienie wysyła osobom wiadomość, że ustawiono im jednolitą stopkę. Wpisujesz temat, treść (zapis `{link}` zamienia się na adres strony Stopka) i listę adresów. Aplikacja pokazuje podgląd wiadomości razem z przykładem stopki i liczy odbiorców (powtórzenia i niepoprawne adresy są wyłapywane, jednorazowo do 200 osób). Przycisk „Wyślij próbnie do mnie” wysyła wiadomość na twój adres, a wysyłka do całej listy wymaga zaznaczenia potwierdzenia. Wiadomość wychodzi osobno do każdej osoby, ze skrzynki zalogowanego administratora (`POST /me/sendMail`), więc konto bez skrzynki nie wyśle wiadomości. Każda wysyłka trafia do dziennika audytu.
 
-Wymaga delegowanego uprawnienia `Mail.Send`. Aplikacja prosi o nie dopiero przy pierwszej wysyłce, więc zgodę wyrażają tylko administratorzy, którzy wysyłają, a nie wszyscy użytkownicy. Dodaj je w rejestracji (API permissions) albo uruchom `setup-entra.sh` z opcją `--with-mail-send`.
+Osoba, która sama zapisze dane do stopki, może zaznaczyć „Po zapisaniu wyślij mi potwierdzenie e-mailem”: dostaje wiadomość z tym, co zapisała, i swoją stopką. Po ręcznym wdrożeniu reguły strona stopki w Outlooku podpowiada przejście do powiadomienia dla użytkowników. Obie funkcje korzystają z delegowanego uprawnienia `Mail.Send`. Aplikacja prosi o nie dopiero przy pierwszej wysyłce, więc zgodę wyrażają tylko administratorzy, którzy wysyłają, a nie wszyscy użytkownicy. Dodaj je w rejestracji (API permissions) albo uruchom `setup-entra.sh` z opcją `--with-mail-send`.
 
 ### Automatyczna konfiguracja rejestracji
 

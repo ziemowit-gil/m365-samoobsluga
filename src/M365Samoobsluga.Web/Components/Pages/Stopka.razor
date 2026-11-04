@@ -5,6 +5,10 @@
 @inject ISignatureTemplateStore Store
 @inject IJSRuntime Js
 @inject UiGuard Guard
+@inject ICurrentUser User
+@inject INoticeMailer Mailer
+@inject NavigationManager Nav
+@inject IConfiguration Config
 <PageTitle>Stopka · Samoobsługa poczty</PageTitle>
 <h1>Stopka wiadomości</h1>
 <p>Stopka powstaje według wzoru organizacji. Ty ustawiasz tylko stanowisko i telefon. Imię, nazwisko i adres e-mail pochodzą z Twojego konta.</p>
@@ -20,6 +24,8 @@ else
         <p class="hint" id="phh">Na przykład +48 600 100 200. Zostaw puste, jeśli nie chcesz podawać numeru.</p>
         <input id="ph" type="text" inputmode="tel" autocomplete="tel" aria-describedby="phh" @bind="m.Phone" />
     </div>
+    <div class="field check"><input id="conf" type="checkbox" @bind="sendConfirmation" /><label for="conf">Po zapisaniu wyślij mi potwierdzenie e-mailem</label></div>
+    <p class="hint">Wiadomość przyjdzie na Twój adres. Przy pierwszym razie Microsoft poprosi o zgodę na wysłanie poczty w Twoim imieniu (Mail.Send).</p>
     <button type="submit" disabled="@busy">Zapisz</button>
     <button type="button" class="secondary" disabled="@busy" @onclick="Sync">Pobierz z Microsoft 365</button>
 </EditForm>
@@ -34,7 +40,7 @@ else
 @code {
     sealed class Form { public string Title { get; set; } = ""; public string Phone { get; set; } = ""; }
     SignatureTemplate Template = new(new(), new());
-    Form m = new(); SignaturePerson person = new("", "", "", ""); bool loading = true, busy; string? error, ok, copied;
+    Form m = new(); SignaturePerson person = new("", "", "", ""); bool loading = true, busy, sendConfirmation; string? error, ok, copied;
     SignaturePerson Current => person with { Title = m.Title.Trim(), Phone = m.Phone.Trim() };
     string Html => SignatureRenderer.RenderHtml(Template.Org, Template.Design, Current);
     string Text => SignatureRenderer.RenderText(Template.Org, Template.Design, Current);
@@ -48,7 +54,17 @@ else
     {
         busy = true; ok = null; copied = null;
         error = await Guard.RunAsync(() => Svc.SaveAsync(m.Title, m.Phone));
-        if (error is null) ok = "Dane do stopki zapisane.";
+        if (error is null)
+        {
+            ok = "Dane do stopki zapisane.";
+            if (sendConfirmation)
+            {
+                var to = StopkaNotice.IsValidEmail(person.Email) ? person.Email : User.Current.UserPrincipalName;
+                var (subject, html) = StopkaNotice.BuildSelfConfirmation(Current, AzureSetup.ResolveAppUrl(Config["Samoobsluga:PublicUrl"], Nav.BaseUri) + "stopka", Template);
+                error = await Guard.RunAsync(() => Mailer.SendAsync(to, subject, html));
+                if (error is null) ok += " Potwierdzenie wysłano na adres " + to + ".";
+            }
+        }
         busy = false;
     }
     async Task Sync()

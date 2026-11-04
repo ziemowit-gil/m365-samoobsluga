@@ -45,4 +45,15 @@ else
     }
     </tbody>
 </table>
+<p>Opcjonalnie, dla powiadomień e-mail o stopce:</p>
+<table>
+    <caption class="sr-only">Uprawnienie opcjonalne</caption>
+    <thead><tr><th scope="col">Uprawnienie</th><th scope="col">Do czego</th></tr></thead>
+    <tbody>
+    @foreach (var p in AzureSetup.OptionalPermissions)
+    {
+        <tr><td><code>@p.Name</code></td><td>@p.Purpose</td></tr>
+    }
+    </tbody>
+</table>
 <p>Sekret klienta: Certyfikaty i wpisy tajne (Certificates &amp; secrets) → Nowy wpis tajny klienta (New client secret). Skopiuj kolumnę Wartość (Value) i wpisz ją na serwerze w pliku <code>/etc/m365-samoobsluga.env</code>.</p>

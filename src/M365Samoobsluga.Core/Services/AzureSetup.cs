@@ -36,6 +36,12 @@ public static partial class AzureSetup
         return (u.GetLeftPart(UriPartial.Authority) + "/", null);
     }
 
+    /// <summary>Uprawnienia opcjonalne: aplikacja prosi o nie dopiero przy użyciu funkcji, więc zgodę wyraża tylko osoba, która z niej korzysta.</summary>
+    public static readonly IReadOnlyList<AzurePermission> OptionalPermissions =
+    [
+        new("Mail.Send", "Powiadomienia o stopce (strona Administrator: powiadomienie) i potwierdzenie e-mailem po zapisaniu własnej stopki. Wiadomość wychodzi ze skrzynki zalogowanej osoby."),
+    ];
+
     /// <summary>Uprawnienia delegowane Graph używane przez aplikację (zgodne z DownstreamApis:MicrosoftGraph:Scopes w appsettings.json).</summary>
     public static readonly IReadOnlyList<AzurePermission> RequiredPermissions =
     [

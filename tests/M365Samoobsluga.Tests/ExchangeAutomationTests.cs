@@ -272,5 +272,28 @@ public class StopkaNoticeTests
     }
 
     [Fact]
+    public void Potwierdzenie_dla_osoby_ma_jej_dane_i_prawdziwa_stopke()
+    {
+        var (subject, html) = StopkaNotice.BuildSelfConfirmation(new SignaturePerson("Jan Kowalski", "Prezes", "+48 601 350 487", "jan@feer.org.pl"), "https://app.example.org/stopka", T);
+        Assert.Equal(StopkaNotice.SelfSubject, subject);
+        Assert.Contains("Stanowisko: Prezes", html);
+        Assert.Contains("+48 601 350 487", html);
+        Assert.Contains("Jan Kowalski", html);
+        Assert.Contains("https://app.example.org/stopka", html);
+        Assert.Contains("Tel. ogólny: 12 210 06 98", html);
+    }
+
+    [Fact]
+    public void Potwierdzenie_koduje_dane_osoby() =>
+        Assert.DoesNotContain("<b>", StopkaNotice.BuildSelfConfirmation(new SignaturePerson("<b>x</b>", "<script>", "1", "a@b.pl"), "https://a.pl/", T).Html);
+
+    [Fact]
+    public void Mail_send_jest_uprawnieniem_opcjonalnym_a_nie_poczatkowym()
+    {
+        Assert.Contains(AzureSetup.OptionalPermissions, p => p.Name == "Mail.Send");
+        Assert.DoesNotContain(AzureSetup.RequiredPermissions, p => p.Name == "Mail.Send");
+    }
+
+    [Fact]
     public void Domyslna_tresc_ma_link() => Assert.Contains(StopkaNotice.LinkToken, StopkaNotice.DefaultBody);
 }
