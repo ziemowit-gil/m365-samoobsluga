@@ -33,6 +33,31 @@ if (-not $cert.HasPrivateKey) { Fail 'Certyfikat nie zawiera klucza prywatnego.'
 if ($cert.NotAfter -lt (Get-Date)) { Fail "Certyfikat wygasł $($cert.NotAfter.ToString('yyyy-MM-dd'))." }
 Write-Host "Certyfikat OK: odcisk $($cert.Thumbprint), ważny do $($cert.NotAfter.ToString('yyyy-MM-dd')). Ten odcisk musi być widoczny w Entra (Certyfikaty i wpisy tajne) w rejestracji $AppId."
 
+# 3b. Token bezpośrednio (MSAL z modułu): pokazuje prawdziwy błąd Microsoftu (AADSTS...), który moduł ukrywa pod "Object reference not set"
+try {
+    $msal = Get-ChildItem -Path $mod.ModuleBase -Recurse -Filter 'Microsoft.Identity.Client.dll' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($msal) {
+        Add-Type -Path $msal.FullName -ErrorAction Stop
+        $app = [Microsoft.Identity.Client.ConfidentialClientApplicationBuilder]::Create($AppId).WithCertificate($cert).WithTenantId($Organization).Build()
+        $res = $app.AcquireTokenForClient([string[]]@('https://outlook.office365.com/.default')).ExecuteAsync().GetAwaiter().GetResult()
+        $p = $res.AccessToken.Split('.')[1].Replace('-', '+').Replace('_', '/')
+        $p = $p.PadRight($p.Length + (4 - $p.Length % 4) % 4, '=')
+        $claims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p)) | ConvertFrom-Json
+        $roles = if ($claims.roles) { $claims.roles -join ', ' } else { '(brak)' }
+        Write-Host "Token uzyskany. Aplikacja: $($claims.appid), dzierżawa: $($claims.tid), role w tokenie: $roles"
+        if ($roles -notlike '*Exchange.ManageAsApp*') {
+            Write-Host 'UWAGA: w tokenie nie ma Exchange.ManageAsApp. Dodaj uprawnienie aplikacyjne Office 365 Exchange Online -> Exchange.ManageAsApp i udziel zgody administratora w Entra.' -ForegroundColor Yellow
+        }
+    }
+} catch {
+    $e = $_.Exception; while ($e.InnerException) { $e = $e.InnerException }
+    $code = if ($e.PSObject.Properties['ErrorCode']) { $e.ErrorCode } else { $e.GetType().Name }
+    $m = $e.Message; if ($m.Length -gt 600) { $m = $m.Substring(0, 600) + '...' }
+    Write-Host "BŁĄD pobrania tokenu ($code): $m" -ForegroundColor Red
+    Write-Host 'To jest prawdziwa przyczyna. Częste: AADSTS700027/700016 (certyfikat .cer nie jest wgrany w tej rejestracji albo zły Client ID), AADSTS90002 (zła domena organizacji), AADSTS7000112 (aplikacja wyłączona).' -ForegroundColor Yellow
+    exit 1
+}
+
 # 4. Połączenie certyfikatem (obiekt certyfikatu zamiast ścieżki i hasła)
 Import-Module ExchangeOnlineManagement
 try {
