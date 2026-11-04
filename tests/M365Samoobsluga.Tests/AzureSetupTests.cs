@@ -122,6 +122,7 @@ public class ExchangeRuleBuilderTests
         Assert.Contains("ApplyHtmlDisclaimerLocation        = 'Append'", s);
         Assert.Contains("FromScope                          = 'InOrganization'", s);
         Assert.Contains("ExceptIfHeaderMatchesMessageHeader = 'X-Samoobsluga-Stopka'", s);
+        Assert.Contains("FromAddressMatchesPatterns         = '" + ExchangeRuleBuilder.PersonalSenderPattern + "'", s);
         Assert.Contains("<div>x</div>", s);
         Assert.Contains("New-TransportRule", s);
         Assert.Contains("Set-TransportRule", s);
@@ -237,4 +238,26 @@ public class MetroTilesTests
         return 0.2126 * C(1) + 0.7152 * C(3) + 0.0722 * C(5);
     }
     private static double Contrast(string a, string b) { var (x, y) = (Lum(a), Lum(b)); return (Math.Max(x, y) + 0.05) / (Math.Min(x, y) + 0.05); }
+}
+
+public class PersonalSenderPatternTests
+{
+    private static bool Match(string a) => System.Text.RegularExpressions.Regex.IsMatch(a, ExchangeRuleBuilder.PersonalSenderPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    [Theory]
+    [InlineData("jan.kowalski@feer.org.pl")]
+    [InlineData("Anna.Nowak-Zielinska@FEER.org.pl")]
+    [InlineData("jan.kowalski.2@feer.org.pl")]
+    public void Konta_osobiste_dostaja_stopke(string a) => Assert.True(Match(a));
+
+    [Theory]
+    [InlineData("kontakt@feer.org.pl")]
+    [InlineData("faktury@feer.org.pl")]
+    [InlineData("szkolenia@feer.org.pl")]
+    [InlineData(".jan@feer.org.pl")]
+    [InlineData("jan.@feer.org.pl")]
+    [InlineData("jan.kowalski@feer.pl")]
+    [InlineData("jan.kowalski@feer.org.pl.evil.com")]
+    [InlineData("x@evil.com, jan.kowalski@feer.org.pl")]
+    public void Konta_funkcyjne_i_obce_nie_dostaja_stopki(string a) => Assert.False(Match(a));
 }

@@ -105,6 +105,7 @@ try {
         ApplyHtmlDisclaimerText            = $html
         ApplyHtmlDisclaimerFallbackAction  = 'Wrap'
         FromScope                          = 'InOrganization'
+        FromAddressMatchesPatterns         = '^[^@\s.]+\.[^@\s]+@feer\.org\.pl$'
         SetHeaderName                      = $MarkHeader
         SetHeaderValue                     = '1'
         ExceptIfHeaderMatchesMessageHeader = $MarkHeader

@@ -47,6 +47,7 @@ public sealed class ExchangeRestRuleDeployer(ExchangeRestAccess access, Exchange
                 ["ApplyHtmlDisclaimerText"] = html,
                 ["ApplyHtmlDisclaimerFallbackAction"] = "Wrap",
                 ["FromScope"] = "InOrganization",
+                ["FromAddressMatchesPatterns"] = new[] { ExchangeRuleBuilder.PersonalSenderPattern },
                 ["SetHeaderName"] = ExchangeRuleBuilder.MarkHeader,
                 ["SetHeaderValue"] = "1",
                 ["ExceptIfHeaderMatchesMessageHeader"] = ExchangeRuleBuilder.MarkHeader,

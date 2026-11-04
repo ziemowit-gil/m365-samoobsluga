@@ -1,4 +1,6 @@
+using System.Text.RegularExpressions;
 using M365Samoobsluga.Core.Models;
+using M365Samoobsluga.Core.Validation;
 
 namespace M365Samoobsluga.Core.Services;
 
@@ -16,6 +18,12 @@ public static class ExchangeRuleBuilder
     public const string MarkHeader = "X-Samoobsluga-Stopka";
     /// <summary>Limit długości tekstu stopki w regule (ApplyHtmlDisclaimerText), tak jak w SZO.</summary>
     public const int MaxChars = 5000;
+
+    /// <summary>
+    /// Stopka tylko dla kont osobistych w postaci imie.nazwisko@feer.org.pl (kropka w nazwie przed @). Konta funkcyjne bez kropki
+    /// (kontakt@, faktury@, szkolenia@) jej nie dostają. Wyrażenie regularne działa na adresie nadawcy w regule transportowej.
+    /// </summary>
+    public static readonly string PersonalSenderPattern = @"^[^@\s.]+\.[^@\s]+@" + Regex.Escape(AddressValidator.AliasDomain) + "$";
 
     public static readonly SignaturePerson Tokens = new("%%DisplayName%%", "%%Title%%", "%%MobilePhone%%", "%%WindowsEmailAddress%%");
 
@@ -53,6 +61,7 @@ public static class ExchangeRuleBuilder
             ApplyHtmlDisclaimerText            = $html
             ApplyHtmlDisclaimerFallbackAction  = 'Wrap'
             FromScope                          = 'InOrganization'
+            FromAddressMatchesPatterns         = '{{PersonalSenderPattern}}'
             SetHeaderName                      = '{{MarkHeader}}'
             SetHeaderValue                     = '1'
             ExceptIfHeaderMatchesMessageHeader = '{{MarkHeader}}'
