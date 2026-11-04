@@ -20,6 +20,6 @@ else
   echo "==> PowerShell już jest: $(pwsh --version)"
 fi
 
-echo "==> Moduł ExchangeOnlineManagement"
-pwsh -NoProfile -Command "Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module ExchangeOnlineManagement -Scope AllUsers -Force; (Get-Module -ListAvailable ExchangeOnlineManagement | Select-Object -First 1).Version.ToString()"
+echo "==> Moduły ExchangeOnlineManagement i Microsoft.Graph.Applications"
+pwsh -NoProfile -Command "Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module ExchangeOnlineManagement -Scope AllUsers -Force; Install-Module Microsoft.Graph.Applications -Scope AllUsers -Force; (Get-Module -ListAvailable ExchangeOnlineManagement | Select-Object -First 1).Version.ToString()"
 echo "Gotowe. Dalej: certyfikat aplikacji i ustawienia Samoobsluga:Exchange (README, sekcja o wdrażaniu reguły z aplikacji)."

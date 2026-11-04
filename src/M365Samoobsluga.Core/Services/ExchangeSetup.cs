@@ -36,15 +36,17 @@ public static class ExchangeSetup
         # Skrypt wygenerowany przez Samoobsługę poczty Microsoft 365. Uruchom jednorazowo jako administrator Exchange i Entra.
         # Nadaje aplikacji wąski dostęp do Exchange: tylko reguły transportowe i opcje użytkownika (zob. dokumentację
         # "App-only authentication in Exchange Online PowerShell", opcja: custom role groups).
-        # Wymaga modułów ExchangeOnlineManagement i Microsoft.Graph.Applications.
+        # Wymaga modułów ExchangeOnlineManagement i Microsoft.Graph.Applications (instaluje je scripts/install-exchange-tools-ubuntu.sh).
+        # Uruchomienie:  pwsh ./Setup-ExchangeRole.ps1
         $ErrorActionPreference = 'Stop'
         $appId = '{{appId}}'
 
-        Connect-MgGraph -Scopes 'Application.Read.All'
+        # Logowanie kodem urządzenia: działa też na serwerze bez przeglądarki (wpisz kod na https://microsoft.com/devicelogin).
+        Connect-MgGraph -Scopes 'Application.Read.All' -UseDeviceAuthentication -NoWelcome
         $app = Get-MgServicePrincipal -Filter "AppId eq '$appId'"
         if (-not $app) { throw "Nie znaleziono głównej usługi dla $appId. Czy dodano uprawnienie i udzielono zgody w Entra?" }
 
-        Connect-ExchangeOnline
+        Connect-ExchangeOnline -Device -ShowBanner:$false
         New-ServicePrincipal -AppId $app.AppId -ObjectId $app.Id -DisplayName '{{ServicePrincipalName}}'
         $sp = Get-ServicePrincipal -Identity '{{ServicePrincipalName}}'
 

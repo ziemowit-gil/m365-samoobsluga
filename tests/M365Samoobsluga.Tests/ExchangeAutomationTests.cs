@@ -192,6 +192,8 @@ public class ExchangeSetupTests
         Assert.Contains("New-RoleGroup", s);
         Assert.Contains("'Transport Rules','User Options'", s);
         Assert.Contains("Add-RoleGroupMember", s);
+        Assert.Contains("-UseDeviceAuthentication", s);
+        Assert.Contains("Connect-ExchangeOnline -Device", s);
         Assert.DoesNotContain("Exchange Administrator", s.Replace("nie rolę Exchange Administrator", ""));
     }
 
