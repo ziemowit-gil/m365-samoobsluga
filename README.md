@@ -30,6 +30,10 @@ Generator działa jak moduł stopek w SZO: jeden szablon HTML dla wszystkich. Da
 
 Zapis aliasu wymaga uprawnień Exchange wyższych niż użytkownika. Zamiast je rozdawać, podmień `IAliasChangeExecutor` na wąski backend. Ma przyjmować UPN wyłącznie z zaufanego tokenu, walidować alias (`AddressValidator`) i mieć uprawnienia ograniczone do jednej skrzynki. Sposób ograniczania uprawnień aplikacji w Exchange Online trzeba potwierdzić w aktualnej dokumentacji przed wdrożeniem. Do tego czasu działa tryb wniosków. Backend łączący się z Exchange Online bez użytkownika też loguje się certyfikatem, tak jak ta aplikacja (patrz niżej).
 
+## Wygląd i logowanie
+
+Nawigacja to wstążka w stylu Office: karty „Moje konto”, „Poczta” i (tylko dla administratorów) „Administrator”, a pod nimi pogrupowane przyciski z ikonami. Otwiera się karta pasująca do bieżącej strony. Karty działają z klawiatury (strzałki, Home, End), a bez JavaScriptu widać wszystkie. Niezalogowani trafiają na ładne okno logowania (`/logowanie`) z przyciskiem „Zaloguj się kontem Microsoft 365”. Adres powrotu jest zapamiętywany i sprawdzany (tylko adresy lokalne), a pliki statyczne są dostępne bez logowania, żeby okno miało style.
+
 ## Struktura
 
 ```

@@ -1,0 +1,49 @@
+@using Microsoft.AspNetCore.Authorization
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider Auth
+@inject IAuthorizationService Authz
+
+<div class="ribbon" role="region" aria-label="Wstążka poleceń">
+    <div class="ribbon-tabs" role="tablist" aria-label="Karty wstążki">
+        @foreach (var t in Visible)
+        {
+            var active = t.Id == activeId;
+            <button type="button" role="tab" class="ribbon-tab" id="rtab-@t.Id" aria-controls="rpanel-@t.Id"
+                    aria-selected="@(active ? "true" : "false")" tabindex="@(active ? 0 : -1)">@t.Title</button>
+        }
+    </div>
+    @foreach (var t in Visible)
+    {
+        var active = t.Id == activeId;
+        <div class="ribbon-panel" role="tabpanel" id="rpanel-@t.Id" aria-labelledby="rtab-@t.Id" hidden="@(!active)">
+            @foreach (var g in t.Groups)
+            {
+                <div class="ribbon-group" role="group" aria-label="@g.Title">
+                    <div class="ribbon-buttons">
+                        @foreach (var i in g.Items)
+                        {
+                            <NavLink class="ribbon-btn" href="@i.Href" Match="@(i.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)" title="@i.Description">
+                                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths(i.Icon))</svg>
+                                <span>@i.Label</span>
+                            </NavLink>
+                        }
+                    </div>
+                    <div class="ribbon-group-title" aria-hidden="true">@g.Title</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+<noscript><style>.ribbon-panel[hidden] { display: flex; }</style></noscript>
+
+@code {
+    bool isAdmin; string activeId = "konto";
+    IEnumerable<RibbonTab> Visible => RibbonDefinition.Tabs.Where(t => isAdmin || !t.AdminOnly);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await Auth.GetAuthenticationStateAsync()).User;
+        isAdmin = user.Identity?.IsAuthenticated == true && (await Authz.AuthorizeAsync(user, "Admin")).Succeeded;
+        activeId = RibbonDefinition.ActiveTabId(Nav.ToBaseRelativePath(Nav.Uri), isAdmin);
+    }
+}

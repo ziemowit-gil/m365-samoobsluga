@@ -160,3 +160,49 @@ public class LoginErrorsTests
     public void Komunikat_nie_zawiera_tokenow_ani_tresci_bledu() =>
         Assert.DoesNotContain("eyJ", LoginErrors.Describe("AADSTS7000215 eyJhbGciOi.secret.token").Hint);
 }
+
+public class LoginAndRibbonTests
+{
+    [Theory]
+    [InlineData("/stopka", "/stopka")]
+    [InlineData("/admin/mailing?x=1", "/admin/mailing?x=1")]
+    [InlineData("", "/")]
+    [InlineData(null, "/")]
+    [InlineData("https://zly.example.org/", "/")]
+    [InlineData("//zly.example.org/", "/")]
+    [InlineData("/\\zly.example.org", "/")]
+    [InlineData("javascript:alert(1)", "/")]
+    [InlineData("/a://b", "/")]
+    public void Adres_powrotu_tylko_lokalny(string? input, string expected) => Assert.Equal(expected, AzureSetup.SafeReturnUrl(input));
+
+    [Theory]
+    [InlineData("", false, "konto")]
+    [InlineData("haslo", false, "konto")]
+    [InlineData("autoresponder", false, "poczta")]
+    [InlineData("stopka", true, "poczta")]
+    [InlineData("admin/exchange", true, "administrator")]
+    [InlineData("admin/exchange", false, "konto")]
+    [InlineData("nieznana", true, "konto")]
+    public void Aktywna_karta_wynika_ze_strony(string path, bool admin, string expected) =>
+        Assert.Equal(expected, M365Samoobsluga.Web.Components.Layout.RibbonDefinition.ActiveTabId(path, admin));
+
+    [Fact]
+    public void Kazdy_przycisk_wstazki_prowadzi_do_istniejacej_strony()
+    {
+        var routes = typeof(Program).Assembly.GetTypes()
+            .SelectMany(t => t.GetCustomAttributes(typeof(Microsoft.AspNetCore.Components.RouteAttribute), false).Cast<Microsoft.AspNetCore.Components.RouteAttribute>())
+            .Select(r => r.Template.Trim('/').ToLowerInvariant()).ToHashSet();
+        foreach (var item in M365Samoobsluga.Web.Components.Layout.RibbonDefinition.Tabs.SelectMany(t => t.Groups).SelectMany(g => g.Items))
+            Assert.True(routes.Contains(item.Href), $"Brak strony dla przycisku „{item.Label}” ({item.Href}).");
+    }
+
+    [Fact]
+    public void Etykiety_przyciskow_sa_unikalne_w_obrebie_karty()
+    {
+        foreach (var tab in M365Samoobsluga.Web.Components.Layout.RibbonDefinition.Tabs)
+        {
+            var labels = tab.Groups.SelectMany(g => g.Items).Select(i => i.Label).ToList();
+            Assert.Equal(labels.Count, labels.Distinct().Count());
+        }
+    }
+}

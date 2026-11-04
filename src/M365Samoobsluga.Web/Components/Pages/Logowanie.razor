@@ -1,0 +1,34 @@
+@page "/logowanie"
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@using M365Samoobsluga.Core.Services
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider Auth
+@inject IConfiguration Config
+<PageTitle>Logowanie · Samoobsługa poczty</PageTitle>
+<div class="login-brand" aria-hidden="true">FEER</div>
+<h1>Samoobsługa poczty Microsoft 365</h1>
+<p class="login-org">Fundacja Edukacji Empatii Rozwoju FEER</p>
+<p>Tu ustawisz własne konto pocztowe, bez zgłaszania zmian administratorowi:</p>
+<ul class="login-list">
+    <li>aliasy e-mail i hasło,</li>
+    <li>weryfikację dwuetapową,</li>
+    <li>stopkę wiadomości,</li>
+    <li>autoresponder i przekierowanie poczty.</li>
+</ul>
+<p>
+    <a class="button login-button" href="@SignInHref">Zaloguj się kontem Microsoft 365</a>
+</p>
+<p class="login-note">Użyj konta w domenie <strong>@Domain</strong>. Zmieniasz wyłącznie swoje konto.</p>
+<p class="login-credit">Wykonanie: Jarek P</p>
+@code {
+    [SupplyParameterFromQuery(Name = "ReturnUrl")] public string? ReturnUrl { get; set; }
+    string SignInHref => "MicrosoftIdentity/Account/SignIn?redirectUri=" + Uri.EscapeDataString(AzureSetup.SafeReturnUrl(ReturnUrl));
+    string Domain => Config["Samoobsluga:DefaultAliasDomain"] is { Length: > 0 } d ? d : "swojej organizacji";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await Auth.GetAuthenticationStateAsync()).User;
+        if (user.Identity?.IsAuthenticated == true) Nav.NavigateTo(AzureSetup.SafeReturnUrl(ReturnUrl), replace: true);
+    }
+}

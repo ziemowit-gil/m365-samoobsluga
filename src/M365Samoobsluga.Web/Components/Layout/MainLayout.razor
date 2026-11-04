@@ -12,31 +12,7 @@
         </Authorized>
     </AuthorizeView>
 </header>
-<nav aria-label="Główna nawigacja">
-    <ul>
-        <li><NavLink href="" Match="NavLinkMatch.All">Start</NavLink></li>
-        <li><NavLink href="aliasy">Aliasy</NavLink></li>
-        <li><NavLink href="haslo">Hasło</NavLink></li>
-        <li><NavLink href="2fa">Weryfikacja 2FA</NavLink></li>
-        <li><NavLink href="stopka">Stopka</NavLink></li>
-        <li><NavLink href="autoresponder">Autoresponder</NavLink></li>
-        <li><NavLink href="przekierowanie">Przekierowanie</NavLink></li>
-        <AuthorizeView Policy="Admin">
-            <li class="nav-dd-item">
-                <details class="nav-dd" id="menu-admin">
-                    <summary>Administrator</summary>
-                    <ul>
-                        <li><NavLink href="admin/stopka">Stopka organizacji</NavLink></li>
-                        <li><NavLink href="admin/stopka-outlook">Stopka w Outlooku</NavLink></li>
-                        <li><NavLink href="admin/mailing">Powiadomienie o stopce</NavLink></li>
-                        <li><NavLink href="admin/exchange">Połączenie z Exchange</NavLink></li>
-                        <li><NavLink href="admin/azure">Ustawienia Azure</NavLink></li>
-                    </ul>
-                </details>
-            </li>
-        </AuthorizeView>
-    </ul>
-</nav>
+<Ribbon />
 <main id="tresc" tabindex="-1">@Body</main>
 
 <div id="blazor-error-ui" data-nosnippet role="alert">

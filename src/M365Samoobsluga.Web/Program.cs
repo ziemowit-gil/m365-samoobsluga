@@ -37,6 +37,10 @@ if (!useMock && configured)
         .AddMicrosoftGraph(builder.Configuration.GetSection("DownstreamApis:MicrosoftGraph"))
         .AddInMemoryTokenCaches();
     builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
+    // Niezalogowani trafiają na stronę powitalną /logowanie (przycisk prowadzi do Microsoftu), a nie od razu do logowania Microsoft.
+    builder.Services.Configure<Microsoft.AspNetCore.Authentication.AuthenticationOptions>(o => o.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
+    builder.Services.PostConfigure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme, o =>
+    { o.LoginPath = "/logowanie"; o.AccessDeniedPath = "/logowanie"; });
     // Błąd w powrocie z logowania: zapisujemy przyczynę w logu i pokazujemy czytelną stronę zamiast ogólnego ekranu błędu.
     builder.Services.PostConfigure<Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectOptions>(
         Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectDefaults.AuthenticationScheme, o =>
@@ -186,7 +190,7 @@ if (!setupMode) app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+app.MapStaticAssets().AllowAnonymous();
 if (!useMock && configured) app.MapControllers();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.Run();

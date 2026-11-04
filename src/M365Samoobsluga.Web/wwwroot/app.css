@@ -51,19 +51,35 @@ th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--borde
 #blazor-error-ui .dismiss { cursor: pointer; margin-left: 1rem; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
-/* Rozwijane menu Administrator (natywny <details>: klawiatura i czytnik ekranu działają bez skryptu) */
-.nav-dd-item { position: relative; }
-.nav-dd summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 0.9rem; min-height: 44px; border-radius: 4px; color: var(--text); }
-.nav-dd summary::-webkit-details-marker { display: none; }
-.nav-dd summary::after { content: ""; border: solid currentColor; border-width: 0 2px 2px 0; padding: 3px; transform: rotate(45deg); margin-top: -3px; }
-.nav-dd[open] summary::after { transform: rotate(-135deg); margin-top: 3px; }
-.nav-dd summary:hover, .nav-dd[open] summary { background: #dcdcdc; }
-.nav-dd:has(a[aria-current="page"]) summary { background: var(--primary); color: #fff; }
-.nav-dd:has(a[aria-current="page"]) summary:hover { background: var(--primary-hover); }
-.nav-dd ul { position: absolute; z-index: 15; top: 100%; right: 0; left: auto; width: max-content; min-width: 16rem; max-width: calc(100vw - 2rem); margin: 0.25rem 0 0; padding: 0.35rem; background: #fff; border: 2px solid var(--text); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.18); flex-direction: column; flex-wrap: nowrap; gap: 0; }
-.nav-dd ul li { display: block; }
-.nav-dd ul a { display: block; padding: 0.55rem 0.8rem; }
-@media (max-width: 640px) { .nav-dd ul { position: static; box-shadow: none; margin-top: 0.25rem; } }
-
 details.manual { margin: 1rem 0; border: 2px solid var(--border); border-radius: 4px; padding: 0.4rem 1rem; }
 details.manual summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+
+/* Wstążka (Office): karty na górze, pod nimi pogrupowane przyciski z ikonami */
+.ribbon { background: var(--surface); border-bottom: 1px solid var(--border); }
+.ribbon-tabs { display: flex; gap: 0.25rem; padding: 0.4rem 1rem 0; overflow-x: auto; }
+.ribbon-tab { font: inherit; font-weight: 600; background: transparent; color: var(--text); border: 0; border-top: 3px solid transparent; border-radius: 4px 4px 0 0; padding: 0.55rem 1.1rem; min-height: 44px; cursor: pointer; white-space: nowrap; }
+.ribbon-tab:hover { background: #e4e4e4; }
+.ribbon-tab[aria-selected="true"] { background: #fff; border-top-color: var(--primary); box-shadow: 0 1px 0 #fff; }
+.ribbon-panel { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; background: #fff; border-top: 1px solid var(--border); padding: 0.5rem 1rem; }
+.ribbon-panel[hidden] { display: none; }
+.ribbon-group { display: flex; flex-direction: column; justify-content: space-between; padding: 0 0.9rem; border-right: 1px solid #c9c9c9; min-width: 5rem; }
+.ribbon-group:last-child { border-right: 0; }
+.ribbon-buttons { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.ribbon-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; min-width: 5.5rem; min-height: 4.4rem; padding: 0.4rem 0.5rem; color: var(--text); text-decoration: none; border-radius: 6px; font-size: 0.85rem; line-height: 1.2; text-align: center; }
+.ribbon-btn:hover { background: #e6edfb; }
+.ribbon-btn[aria-current="page"], .ribbon-btn.active { background: var(--primary); color: #fff; }
+.ribbon-btn[aria-current="page"]:hover, .ribbon-btn.active:hover { background: var(--primary-hover); }
+.ribbon-group-title { text-align: center; font-size: 0.75rem; color: #3f3f3b; padding-top: 0.2rem; }
+@media (max-width: 640px) { .ribbon-group { border-right: 0; border-bottom: 1px solid #c9c9c9; padding: 0.4rem 0; width: 100%; } .ribbon-group:last-child { border-bottom: 0; } }
+
+/* Okno logowania */
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; background: linear-gradient(135deg, #1d1d1a 0%, #1d68f2 120%); }
+.login-card { width: 100%; max-width: 30rem; background: #fff; border-radius: 12px; padding: 2rem 2rem 1.5rem; box-shadow: 0 18px 50px rgba(0,0,0,0.35); }
+.login-brand { display: inline-flex; align-items: center; justify-content: center; width: 4.2rem; height: 4.2rem; border-radius: 12px; background: var(--primary); color: #fff; font-weight: 800; letter-spacing: 0.04em; margin-bottom: 0.8rem; }
+.login-card h1 { font-size: 1.5rem; margin: 0 0 0.2rem; }
+.login-org { margin: 0 0 1.2rem; color: #3f3f3b; }
+.login-list { padding-left: 1.2rem; margin: 0.4rem 0 1.2rem; }
+.login-button { display: block; text-align: center; text-decoration: none; padding: 0.9rem 1rem; font-size: 1.05rem; }
+.login-button:hover { background: var(--primary-hover); }
+.login-note { font-size: 0.9rem; color: #3f3f3b; margin: 0.8rem 0; }
+.login-credit { margin: 1.2rem 0 0; padding-top: 0.9rem; border-top: 1px solid #d8d8d8; text-align: center; font-size: 0.85rem; color: #3f3f3b; }

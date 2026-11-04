@@ -36,6 +36,14 @@ public static partial class AzureSetup
         return (u.GetLeftPart(UriPartial.Authority) + "/", null);
     }
 
+    /// <summary>Adres powrotu po zalogowaniu: tylko lokalna ścieżka (zaczyna się od pojedynczego "/"), w przeciwnym razie strona startowa. Chroni przed przekierowaniem na obcy adres.</summary>
+    public static string SafeReturnUrl(string? returnUrl)
+    {
+        var u = (returnUrl ?? "").Trim();
+        if (u.Length == 0 || u.Length > 500 || u[0] != '/' || u.StartsWith("//") || u.StartsWith("/\\") || u.Any(char.IsControl) || u.Contains("://")) return "/";
+        return u;
+    }
+
     /// <summary>Uprawnienia opcjonalne: aplikacja prosi o nie dopiero przy użyciu funkcji, więc zgodę wyraża tylko osoba, która z niej korzysta.</summary>
     public static readonly IReadOnlyList<AzurePermission> OptionalPermissions =
     [
