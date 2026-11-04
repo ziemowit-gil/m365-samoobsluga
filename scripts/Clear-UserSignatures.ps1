@@ -44,10 +44,10 @@ if (-not $SkipConnect) {
         throw 'Brak modułu ExchangeOnlineManagement. Zainstaluj: Install-Module ExchangeOnlineManagement -Scope CurrentUser'
     }
     Import-Module ExchangeOnlineManagement
-    $conn = @{ ShowBanner = $false }
+    $conn = @{}
     if ($AppId -and $CertificateFilePath -and $Organization) {
         $pwd = $env:M365_EXO_CERT_PASSWORD
-        $conn += @{ AppId = $AppId; CertificateFilePath = $CertificateFilePath; Organization = $Organization }
+        $conn += @{ AppId = $AppId; CertificateFilePath = $CertificateFilePath; Organization = $Organization; ShowBanner = $false }
         if ($pwd) { $conn += @{ CertificatePassword = (ConvertTo-SecureString -String $pwd -AsPlainText -Force) } }
     } elseif ($ConnectUserPrincipalName) {
         $conn += @{ UserPrincipalName = $ConnectUserPrincipalName }
@@ -81,6 +81,13 @@ try {
         }
     }
     Write-Host "Skrzynek z zapisanym podpisem: $($backup.Count). Wyczyszczono: $changed. Kopia zapasowa: $BackupFile"
+}
+catch {
+    # Dokładne miejsce błędu ułatwia diagnozę (np. wyjątki z wnętrza modułu Exchange).
+    Write-Host ("BŁĄD: " + $_.Exception.GetType().FullName + ": " + $_.Exception.Message) -ForegroundColor Red
+    if ($_.Exception.InnerException) { Write-Host ("Wewnętrzny: " + $_.Exception.InnerException.Message) -ForegroundColor Red }
+    Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray
+    throw
 }
 finally {
     if (-not $SkipConnect) { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue }

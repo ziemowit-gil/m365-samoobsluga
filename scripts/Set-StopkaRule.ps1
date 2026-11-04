@@ -66,12 +66,12 @@ if (-not $SkipConnect) {
         throw 'Brak modułu ExchangeOnlineManagement. Zainstaluj: Install-Module ExchangeOnlineManagement -Scope CurrentUser'
     }
     Import-Module ExchangeOnlineManagement
-    $conn = @{ ShowBanner = $false }
+    $conn = @{}
     if ($AppId -and $CertificateFilePath -and $Organization) {
-        $conn += @{ AppId = $AppId; CertificateFilePath = $CertificateFilePath; Organization = $Organization }
+        $conn += @{ AppId = $AppId; CertificateFilePath = $CertificateFilePath; Organization = $Organization; ShowBanner = $false }
         if ($env:M365_EXO_CERT_PASSWORD) { $conn += @{ CertificatePassword = (ConvertTo-SecureString -String $env:M365_EXO_CERT_PASSWORD -AsPlainText -Force) } }
     } elseif ($AppId -and $CertificateThumbprint -and $Organization) {
-        $conn += @{ AppId = $AppId; CertificateThumbprint = $CertificateThumbprint; Organization = $Organization }
+        $conn += @{ AppId = $AppId; CertificateThumbprint = $CertificateThumbprint; Organization = $Organization; ShowBanner = $false }
     } elseif ($UserPrincipalName) {
         $conn += @{ UserPrincipalName = $UserPrincipalName }
     }
@@ -123,6 +123,13 @@ try {
             Write-Host 'Tryb Audit nie zmienia wiadomości. Sprawdź śledzenie wiadomości, a potem uruchom skrypt z -Mode Enforce.'
         }
     }
+}
+catch {
+    # Dokładne miejsce błędu ułatwia diagnozę (np. wyjątki z wnętrza modułu Exchange).
+    Write-Host ("BŁĄD: " + $_.Exception.GetType().FullName + ": " + $_.Exception.Message) -ForegroundColor Red
+    if ($_.Exception.InnerException) { Write-Host ("Wewnętrzny: " + $_.Exception.InnerException.Message) -ForegroundColor Red }
+    Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray
+    throw
 }
 finally {
     if (-not $SkipConnect) { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue }
