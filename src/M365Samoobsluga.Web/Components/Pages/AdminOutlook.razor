@@ -21,6 +21,13 @@ else
         <div class="field check"><input id="m2" type="radio" name="mode" checked="@(mode == ExchangeRuleMode.Enforce)" @onchange="() => mode = ExchangeRuleMode.Enforce" /><label for="m2">Enforce: dopisuje stopkę do wiadomości</label></div>
     </fieldset>
     <p>Długość szablonu: <strong>@html.Length</strong> z @ExchangeRuleBuilder.MaxChars znaków.</p>
+    <div class="seg" role="group" aria-label="Sekcje strony">
+        <button type="button" aria-pressed="@(section == 1 ? "true" : "false")" @onclick="() => section = 1">Szablon i skrypt</button>
+        <button type="button" aria-pressed="@(section == 2 ? "true" : "false")" @onclick="() => section = 2">Wdrożenie z aplikacji</button>
+        <button type="button" aria-pressed="@(section == 3 ? "true" : "false")" @onclick="() => section = 3">Czyszczenie podpisów</button>
+    </div>
+    @if (section == 1)
+    {
     <h2>Podgląd (przykładowa osoba)</h2>
     <div class="preview" role="region" aria-label="Podgląd stopki">@((MarkupString)ExchangeRuleBuilder.Substitute(html, Sample))</div>
     <h2>Skrypt PowerShell</h2>
@@ -33,6 +40,19 @@ else
     </p>
     <div role="status">@copied</div>
     <p>Zamiast wklejać skrypt możesz pobrać szablon HTML i uruchomić gotowy skrypt <code>scripts/Set-StopkaRule.ps1</code> z repozytorium (obsługuje <code>-WhatIf</code>, tryb Audit i Enforce oraz usunięcie reguły).</p>
+    <details class="manual"><summary>Wdrożenie ręczne (alternatywa dla przycisków wyżej)</summary>
+    <ol>
+        <li>Zainstaluj moduł: <code>Install-Module ExchangeOnlineManagement</code>.</li>
+        <li>Połącz się kontem z rolą do reguł transportowych: <code>Connect-ExchangeOnline</code>.</li>
+        <li>Uruchom skrypt. Reguła powstaje w trybie Audit.</li>
+        <li>Wyślij kilka wiadomości testowych i sprawdź w śledzeniu wiadomości, że reguła się dopasowuje.</li>
+        <li>Wróć tu, wybierz Enforce, skopiuj nowy skrypt i uruchom go jeszcze raz.</li>
+        <li>Aby usunąć regułę: <code>@ExchangeRuleBuilder.BuildRemoveScript()</code></li>
+    </ol>
+    </details>
+    }
+    else if (section == 2)
+    {
     <h2>Wdrożenie z aplikacji</h2>
     @if (!Deployer.IsConfigured)
     {
@@ -57,6 +77,10 @@ else
     @if (execOk is not null) { <p><a href="admin/mailing">Wyślij użytkownikom powiadomienie, że ustawiono im stopkę</a></p> }
     @if (execOutput is not null) { <pre class="preview" aria-label="Wynik polecenia">@execOutput</pre> }
 
+
+    }
+    else
+    {
     <h2>Czyszczenie już wpisanych podpisów</h2>
     <p>Usuwa podpisy zapisane przez użytkowników w ustawieniach poczty w Exchange i wyłącza ich automatyczne dodawanie, żeby nie dublowały stopki z reguły. Przed zmianą aplikacja zapisuje kopię zapasową w <code>App_Data/signature-backups</code>. Podpisy zapisane tylko na komputerze użytkownika (np. w Outlooku klasycznym) i podpisy mobilne tym nie znikną, a podpisy zsynchronizowane (roaming) mogą wymagać ręcznego usunięcia przez użytkownika.</p>
     <fieldset>
@@ -67,19 +91,12 @@ else
         <div class="field"><label for="cc">Aby potwierdzić, wpisz słowo WYCZYŚĆ</label><input id="cc" type="text" autocomplete="off" @bind="clearConfirm" /></div>
     </fieldset>
     <p><button type="button" class="secondary" disabled="@(!Deployer.IsConfigured || execBusy || clearConfirm.Trim() != "WYCZYŚĆ")" @onclick="ClearSignatures">Wyczyść podpisy</button></p>
-    <details class="manual"><summary>Wdrożenie ręczne (alternatywa dla przycisków wyżej)</summary>
-    <ol>
-        <li>Zainstaluj moduł: <code>Install-Module ExchangeOnlineManagement</code>.</li>
-        <li>Połącz się kontem z rolą do reguł transportowych: <code>Connect-ExchangeOnline</code>.</li>
-        <li>Uruchom skrypt. Reguła powstaje w trybie Audit.</li>
-        <li>Wyślij kilka wiadomości testowych i sprawdź w śledzeniu wiadomości, że reguła się dopasowuje.</li>
-        <li>Wróć tu, wybierz Enforce, skopiuj nowy skrypt i uruchom go jeszcze raz.</li>
-        <li>Aby usunąć regułę: <code>@ExchangeRuleBuilder.BuildRemoveScript()</code></li>
-    </ol>
-    </details>
+
+    }
 }
 @code {
     static readonly SignaturePerson Sample = new("Anna Kowalska", "Koordynatorka wolontariatu", "+48 600 100 200", "anna.kowalska@example.org");
+    int section = 1;
     string html = "", script = "", copied = "";
     string? error, ok, limitError; bool loading = true;
     ExchangeRuleMode mode = ExchangeRuleMode.Audit;

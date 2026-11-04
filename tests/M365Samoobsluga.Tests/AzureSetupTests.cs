@@ -206,3 +206,34 @@ public class LoginAndRibbonTests
         }
     }
 }
+
+public class MetroTilesTests
+{
+    [Fact]
+    public void Kazdy_kafelek_ma_opis_ikone_i_etykiete()
+    {
+        foreach (var i in M365Samoobsluga.Web.Components.Layout.RibbonDefinition.Tabs.SelectMany(t => t.Groups).SelectMany(g => g.Items))
+        {
+            Assert.False(string.IsNullOrWhiteSpace(i.Label));
+            Assert.False(string.IsNullOrWhiteSpace(i.Description));
+            Assert.DoesNotContain("<circle cx=\"12\" cy=\"12\" r=\"8\"/>", M365Samoobsluga.Web.Components.Layout.RibbonDefinition.IconPaths(i.Icon));
+        }
+    }
+
+    [Theory]
+    [InlineData("#ffffff", "#1d68f2")]
+    [InlineData("#ffffff", "#1d1d1a")]
+    [InlineData("#1d1d1a", "#ea8f00")]
+    [InlineData("#1d1d1a", "#dbe7ff")]
+    [InlineData("#1d1d1a", "#fde9c4")]
+    [InlineData("#1d1d1a", "#e3ecea")]
+    public void Kontrast_tekstu_na_kafelku_to_co_najmniej_4_5_do_1(string fg, string bg) =>
+        Assert.True(Contrast(fg, bg) >= 4.5, $"{fg} na {bg}: {Contrast(fg, bg):F2}");
+
+    private static double Lum(string hex)
+    {
+        double C(int s) { var v = Convert.ToInt32(hex.Substring(s, 2), 16) / 255.0; return v <= 0.03928 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4); }
+        return 0.2126 * C(1) + 0.7152 * C(3) + 0.0722 * C(5);
+    }
+    private static double Contrast(string a, string b) { var (x, y) = (Lum(a), Lum(b)); return (Math.Max(x, y) + 0.05) / (Math.Min(x, y) + 0.05); }
+}

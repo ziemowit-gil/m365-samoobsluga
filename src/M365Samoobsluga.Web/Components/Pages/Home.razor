@@ -1,14 +1,53 @@
 @page "/"
 @attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using M365Samoobsluga.Web.Components.Layout
+@inject AuthenticationStateProvider Auth
+@inject IAuthorizationService Authz
 <PageTitle>Start · Samoobsługa poczty</PageTitle>
 <h1>Samoobsługa poczty</h1>
-<p>Tu zarządzasz wyłącznie własną skrzynką. Wybierz zadanie:</p>
-<ul>
-    <li><a href="aliasy">Aliasy</a>: dodatkowe adresy e-mail do Twojej skrzynki.</li>
-    <li><a href="haslo">Hasło</a>: zmiana hasła do konta Microsoft 365.</li>
-    <li><a href="2fa">Weryfikacja 2FA</a>: metody potwierdzania logowania.</li>
-    <li><a href="stopka">Stopka</a>: przygotowanie podpisu wiadomości.</li>
-    <li><a href="autoresponder">Autoresponder</a>: automatyczna odpowiedź poza biurem.</li>
-    <li><a href="przekierowanie">Przekierowanie</a>: przekazywanie poczty na inny adres.</li>
-</ul>
+<p class="metro-lead">@Greeting Wybierz, co chcesz ustawić. Zmieniasz wyłącznie własne konto.</p>
+
+@foreach (var tab in Tabs)
+{
+    <section class="metro-section" aria-labelledby="ms-@tab.Id">
+        <h2 id="ms-@tab.Id">@tab.Title</h2>
+        <ul class="metro-grid">
+            @{ var n = 0; }
+            @foreach (var item in tab.Groups.SelectMany(g => g.Items))
+            {
+                var tone = ToneFor(tab.Id, n);
+                <li class="@(n == 0 ? "metro-wide" : "")">
+                    <a class="metro-tile tone-@tone" href="@item.Href">
+                        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths(item.Icon))</svg>
+                        <span class="metro-label">@item.Label</span>
+                        <span class="metro-desc">@item.Description</span>
+                    </a>
+                </li>
+                n++;
+            }
+        </ul>
+    </section>
+}
 <p class="msg info">Każda zmiana jest zapisywana w dzienniku audytu (kto, co, kiedy). Hasła nie są zapisywane.</p>
+@code {
+    bool isAdmin; string greeting = "";
+    string Greeting => greeting;
+    IEnumerable<RibbonTab> Tabs => RibbonDefinition.Tabs.Where(t => isAdmin || !t.AdminOnly);
+
+    static readonly Dictionary<string, string[]> Tones = new()
+    {
+        ["konto"] = ["blue", "sky", "dark", "sand"],
+        ["poczta"] = ["amber", "sky", "sand"],
+        ["administrator"] = ["dark", "mist", "mist", "blue", "blue"],
+    };
+    static string ToneFor(string tabId, int i) { var t = Tones.TryGetValue(tabId, out var a) ? a : ["blue"]; return t[i % t.Length]; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await Auth.GetAuthenticationStateAsync()).User;
+        isAdmin = user.Identity?.IsAuthenticated == true && (await Authz.AuthorizeAsync(user, "Admin")).Succeeded;
+        var name = user.FindFirst("name")?.Value?.Split('|')[0].Trim();
+        greeting = string.IsNullOrWhiteSpace(name) ? "Witaj." : $"Witaj, {name}.";
+    }
+}
