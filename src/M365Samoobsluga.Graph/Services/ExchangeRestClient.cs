@@ -28,6 +28,29 @@ public sealed class ExchangeRestClient(Func<CancellationToken, Task<string>> get
         return doc.RootElement.TryGetProperty("tid", out var t) ? t.GetString() ?? "" : "";
     }
 
+    /// <summary>Znany identyfikator szablonu roli katalogowej Exchange Administrator (claim "wids" w tokenie).</summary>
+    public const string ExchangeAdminTemplateId = "29232cdf-9323-42fd-ade2-1d097af3e4de";
+
+    /// <summary>Krótka diagnostyka tokenu (bez samego tokenu): rodzaj uwierzytelnienia, role aplikacyjne i aktywne role katalogowe.</summary>
+    public static string TokenDiagnostics(string jwt)
+    {
+        try
+        {
+            var p = jwt.Split('.')[1].Replace('-', '+').Replace('_', '/');
+            p = p.PadRight(p.Length + (4 - p.Length % 4) % 4, '=');
+            using var doc = JsonDocument.Parse(Convert.FromBase64String(p));
+            var r = doc.RootElement;
+            string List(string name) => r.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Array ? string.Join(", ", v.EnumerateArray().Select(x => x.GetString())) : "(brak)";
+            var wids = List("wids");
+            var acr = r.TryGetProperty("appidacr", out var a) ? a.GetString() : "?";
+            return $" Diagnostyka tokenu: uwierzytelnienie certyfikatem (appidacr) = {acr} (oczekiwane 2), role aplikacyjne = {List("roles")}, role katalogowe (wids) = {wids}. "
+                 + (wids.Contains(ExchangeAdminTemplateId, StringComparison.OrdinalIgnoreCase)
+                     ? "Rola Exchange Administrator jest w tokenie."
+                     : "W tokenie NIE MA aktywnej roli Exchange Administrator. Sprawdź w Entra (Role i administratorzy → Exchange Administrator → Przypisania), czy aplikacja jest przypisana jako Aktywna (nie Kwalifikująca się) i czy upłynęło kilkanaście minut.");
+        }
+        catch (Exception) { return ""; }
+    }
+
     public static string BuildBody(string cmdlet, IReadOnlyDictionary<string, object?>? parameters) =>
         JsonSerializer.Serialize(new { CmdletInput = new { CmdletName = cmdlet, Parameters = parameters ?? new Dictionary<string, object?>() } });
 
@@ -77,7 +100,7 @@ public sealed class ExchangeRestClient(Func<CancellationToken, Task<string>> get
                     return [root.Clone()];
                 }
             }
-        throw new InvalidOperationException((last ?? "Brak odpowiedzi z Exchange") + ". Sprawdź, czy aplikacja ma rolę Exchange w tokenie (Exchange Administrator lub grupa ról) i czy upłynęło 15 do 30 minut od jej nadania.");
+        throw new InvalidOperationException((last ?? "Brak odpowiedzi z Exchange") + "." + TokenDiagnostics(token));
     }
 
     private static bool LooksLikeJson(string text) { var t = text.TrimStart(); return t.StartsWith('{') || t.StartsWith('['); }

@@ -86,7 +86,24 @@ public class ExchangeRestTests
         var h = new FakeHandler((_, _) => (HttpStatusCode.Forbidden, ""));
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => Client(h, "").InvokeAsync("Get-TransportRule"));
         Assert.Contains("403", ex.Message);
-        Assert.Contains("rolę", ex.Message);
+        Assert.Contains("Diagnostyka tokenu", ex.Message);
+    }
+
+    [Fact]
+    public void Diagnostyka_wykrywa_brak_roli_exchange_administrator()
+    {
+        var d = ExchangeRestClient.TokenDiagnostics(Jwt("t"));
+        Assert.Contains("Exchange.ManageAsApp", d);
+        Assert.Contains("NIE MA aktywnej roli", d);
+    }
+
+    [Fact]
+    public void Diagnostyka_widzi_role_w_wids()
+    {
+        var payload = Convert.ToBase64String(Encoding.UTF8.GetBytes("{\"tid\":\"t\",\"appidacr\":\"2\",\"wids\":[\"" + ExchangeRestClient.ExchangeAdminTemplateId + "\"]}")).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        var d = ExchangeRestClient.TokenDiagnostics("e30." + payload + ".sig");
+        Assert.Contains("appidacr) = 2", d);
+        Assert.Contains("Rola Exchange Administrator jest w tokenie", d);
     }
 
     [Fact]
