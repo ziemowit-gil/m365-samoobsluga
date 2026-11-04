@@ -133,6 +133,8 @@ builder.Services.AddSingleton<PowerShellDeployerAccessor>(sp => new PowerShellDe
 builder.Services.AddScoped<IExchangeRuleDeployer>(sp =>
     new AuditedExchangeRuleDeployer(sp.GetRequiredService<PowerShellDeployerAccessor>().Raw, sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
 if (!useMock && configured) builder.Services.AddHostedService<ExchangeRuleSync>();
+if (!useMock && configured && opts.GetValue("AutoApplyAliases", true))
+    builder.Services.AddHostedService(sp => new AliasQueueSync(sp.GetRequiredService<ExchangeRestAccess>(), sp.GetRequiredService<ILogger<AliasQueueSync>>(), opts.GetValue<string>("AliasRequestQueuePath") ?? "App_Data/alias-requests.jsonl"));
 if (useMock) builder.Services.AddSingleton(new MockTemplateStore(defaultTemplate));
 
 // Administratorzy ustawień: Samoobsluga:Admins (UPN lub identyfikatory obiektu). W trybie demo administratorem jest konto demo.

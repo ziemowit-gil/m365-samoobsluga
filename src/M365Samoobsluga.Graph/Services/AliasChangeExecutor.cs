@@ -20,7 +20,7 @@ public interface IAliasChangeExecutor
 /// </summary>
 public sealed class FileQueueAliasChangeExecutor(string path, ILogger<FileQueueAliasChangeExecutor> logger) : IAliasChangeExecutor
 {
-    private static readonly SemaphoreSlim Gate = new(1, 1);
+    internal static readonly SemaphoreSlim Gate = new(1, 1);
     public bool AppliesImmediately => false;
 
     public async Task<AliasOutcome> ExecuteAsync(AliasChange change, CancellationToken ct = default)
