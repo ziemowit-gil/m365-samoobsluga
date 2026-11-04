@@ -68,8 +68,9 @@ if (-not $SkipConnect) {
     Import-Module ExchangeOnlineManagement
     $conn = @{}
     if ($AppId -and $CertificateFilePath -and $Organization) {
-        $conn += @{ AppId = $AppId; CertificateFilePath = $CertificateFilePath; Organization = $Organization; ShowBanner = $false }
-        if ($env:M365_EXO_CERT_PASSWORD) { $conn += @{ CertificatePassword = (ConvertTo-SecureString -String $env:M365_EXO_CERT_PASSWORD -AsPlainText -Force) } }
+        # Obiekt certyfikatu zamiast ścieżki i hasła: błędne hasło daje czytelny komunikat, a nie wyjątek z wnętrza modułu.
+        $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificateFilePath, $env:M365_EXO_CERT_PASSWORD)
+        $conn += @{ AppId = $AppId; Certificate = $cert; Organization = $Organization; ShowBanner = $false }
     } elseif ($AppId -and $CertificateThumbprint -and $Organization) {
         $conn += @{ AppId = $AppId; CertificateThumbprint = $CertificateThumbprint; Organization = $Organization; ShowBanner = $false }
     } elseif ($UserPrincipalName) {

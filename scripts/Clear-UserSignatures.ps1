@@ -46,9 +46,8 @@ if (-not $SkipConnect) {
     Import-Module ExchangeOnlineManagement
     $conn = @{}
     if ($AppId -and $CertificateFilePath -and $Organization) {
-        $pwd = $env:M365_EXO_CERT_PASSWORD
-        $conn += @{ AppId = $AppId; CertificateFilePath = $CertificateFilePath; Organization = $Organization; ShowBanner = $false }
-        if ($pwd) { $conn += @{ CertificatePassword = (ConvertTo-SecureString -String $pwd -AsPlainText -Force) } }
+        $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificateFilePath, $env:M365_EXO_CERT_PASSWORD)
+        $conn += @{ AppId = $AppId; Certificate = $cert; Organization = $Organization; ShowBanner = $false }
     } elseif ($ConnectUserPrincipalName) {
         $conn += @{ UserPrincipalName = $ConnectUserPrincipalName }
     }
