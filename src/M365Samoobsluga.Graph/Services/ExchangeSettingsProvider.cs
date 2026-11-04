@@ -22,7 +22,7 @@ public sealed class ExchangeSettingsProvider(ExchangeSettings baseSettings, stri
         var s = new ExchangeSettings
         {
             Enabled = baseSettings.Enabled, AppId = baseSettings.AppId, Organization = baseSettings.Organization,
-            CertificatePath = baseSettings.CertificatePath, PowerShellPath = baseSettings.PowerShellPath, CertificatePasswordEnv = baseSettings.CertificatePasswordEnv,
+            CertificatePath = baseSettings.CertificatePath, PowerShellPath = baseSettings.PowerShellPath, Mode = baseSettings.Mode, CertificatePasswordEnv = baseSettings.CertificatePasswordEnv,
         };
         if (File.Exists(SettingsFile))
         {

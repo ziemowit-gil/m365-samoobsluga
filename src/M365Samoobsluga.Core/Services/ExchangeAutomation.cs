@@ -15,6 +15,8 @@ public sealed class ExchangeSettings
     /// <summary>Domena organizacji, np. feer.org.pl (lub xxx.onmicrosoft.com).</summary>
     public string Organization { get; set; } = "";
     public string PowerShellPath { get; set; } = "pwsh";
+    /// <summary>"Rest" (domyślnie, bez PowerShella: wywołania InvokeCommand z tokenem aplikacji) albo "PowerShell" (moduł ExchangeOnlineManagement).</summary>
+    public string Mode { get; set; } = "Rest";
     /// <summary>Nazwa zmiennej środowiskowej z hasłem do pliku .pfx.</summary>
     public string CertificatePasswordEnv { get; set; } = "M365_EXO_CERT_PASSWORD";
 }

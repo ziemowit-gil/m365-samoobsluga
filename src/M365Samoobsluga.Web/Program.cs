@@ -106,13 +106,16 @@ builder.Services.AddScoped<INoticeMailer>(sp => new AuditedNoticeMailer(
 
 // Reguła stopki w Exchange: wdrożenie, usunięcie i czyszczenie podpisów z poziomu aplikacji przez PowerShell (certyfikat aplikacji).
 var exchange = opts.GetSection("Exchange").Get<ExchangeSettings>() ?? new ExchangeSettings();
+builder.Services.AddHttpClient();
 builder.Services.AddSingleton(exchange);
 var exchangeProvider = new ExchangeSettingsProvider(exchange, dataDir);
 builder.Services.AddSingleton(exchangeProvider);
 builder.Services.AddSingleton<IExchangeAutomationStore>(new FileExchangeAutomationStore(Path.Combine(dataDir, "exchange-automation.json")));
 builder.Services.AddSingleton<PowerShellDeployerAccessor>(sp => new PowerShellDeployerAccessor(
     useMock ? new MockExchangeDeployer()
-            : new PowerShellExchangeRuleDeployer(exchangeProvider, Path.Combine(AppContext.BaseDirectory, "scripts"), dataDir, sp.GetRequiredService<ILogger<PowerShellExchangeRuleDeployer>>())));
+    : string.Equals(exchange.Mode, "PowerShell", StringComparison.OrdinalIgnoreCase)
+        ? new PowerShellExchangeRuleDeployer(exchangeProvider, Path.Combine(AppContext.BaseDirectory, "scripts"), dataDir, sp.GetRequiredService<ILogger<PowerShellExchangeRuleDeployer>>())
+        : new ExchangeRestRuleDeployer(exchangeProvider, dataDir, sp.GetRequiredService<IHttpClientFactory>())));
 builder.Services.AddScoped<IExchangeRuleDeployer>(sp =>
     new AuditedExchangeRuleDeployer(sp.GetRequiredService<PowerShellDeployerAccessor>().Raw, sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
 if (!useMock && configured) builder.Services.AddHostedService<ExchangeRuleSync>();
