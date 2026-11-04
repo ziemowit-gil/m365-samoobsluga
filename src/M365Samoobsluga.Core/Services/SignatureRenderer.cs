@@ -34,7 +34,7 @@ public static partial class SignatureRenderer
             Color = Hex(i.Color, d.Color),
             Accent = Hex(i.Accent, d.Accent),
             SepColor = Hex(i.SepColor, d.SepColor),
-            NameAccent = i.NameAccent,
+            NameAccent = i.NameAccent, NameFromParts = i.NameFromParts,
             SepStyle = SepStyles.Contains(i.SepStyle) ? i.SepStyle : d.SepStyle,
             Gap = Clamp(i.Gap, 0, 24),
             LogoWidth = Clamp(i.LogoWidth, 40, 300),

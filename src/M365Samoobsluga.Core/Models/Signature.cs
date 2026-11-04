@@ -22,6 +22,8 @@ public sealed class SignatureDesign
     public string Color { get; set; } = "#222222";
     public string Accent { get; set; } = "#1d4ed8";
     public bool NameAccent { get; set; }
+    /// <summary>W stopce z reguły Exchange: imię i nazwisko z pól Imię i Nazwisko (%%FirstName%% %%LastName%%) zamiast nazwy wyświetlanej (%%DisplayName%%), która w katalogu może mieć dopisek.</summary>
+    public bool NameFromParts { get; set; }
     public string SepStyle { get; set; } = "solid";
     public string SepColor { get; set; } = "#999999";
     public int Gap { get; set; } = 8;

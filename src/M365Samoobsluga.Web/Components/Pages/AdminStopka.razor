@@ -45,6 +45,8 @@ else
         <div class="field"><label for="co">Kolor tekstu (#rrggbb)</label><input id="co" type="text" maxlength="7" @bind="d.Color" /></div>
         <div class="field"><label for="ac">Kolor akcentu i linków (#rrggbb)</label><input id="ac" type="text" maxlength="7" @bind="d.Accent" /></div>
         <div class="field check"><input id="na" type="checkbox" @bind="d.NameAccent" /><label for="na">Nazwisko w kolorze akcentu</label></div>
+        <div class="field check"><input id="nfp" type="checkbox" @bind="d.NameFromParts" /><label for="nfp">W stopce z reguły Exchange użyj pól Imię i Nazwisko zamiast nazwy wyświetlanej</label></div>
+        <p class="hint">Nazwa wyświetlana konta w katalogu może mieć dopisek (np. „| Fundacja FEER”), który wtedy powtarza się w stopce. Pola Imię i Nazwisko muszą być uzupełnione w profilu każdej osoby, inaczej imię w stopce będzie puste.</p>
         <div class="field"><label for="ss">Separator przed treścią promocyjną</label>
             <select id="ss" @bind="d.SepStyle">
                 <option value="solid">Ciągła linia</option><option value="dashed">Linia kreskowana</option>

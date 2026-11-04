@@ -19,11 +19,13 @@ public static class ExchangeRuleBuilder
 
     public static readonly SignaturePerson Tokens = new("%%DisplayName%%", "%%Title%%", "%%MobilePhone%%", "%%WindowsEmailAddress%%");
 
-    public static string BuildTemplateHtml(SignatureOrg org, SignatureDesign design) => SignatureRenderer.RenderHtml(org, design, Tokens);
+    public static string BuildTemplateHtml(SignatureOrg org, SignatureDesign design) =>
+        SignatureRenderer.RenderHtml(org, design, design.NameFromParts ? Tokens with { Name = "%%FirstName%% %%LastName%%" } : Tokens);
 
     /// <summary>Podgląd: tokeny zastąpione danymi przykładowej osoby.</summary>
     public static string Substitute(string html, SignaturePerson p) => html
         .Replace("%%DisplayName%%", System.Net.WebUtility.HtmlEncode(p.Name))
+        .Replace("%%FirstName%% %%LastName%%", System.Net.WebUtility.HtmlEncode(p.Name))
         .Replace("%%Title%%", System.Net.WebUtility.HtmlEncode(p.Title))
         .Replace("%%MobilePhone%%", System.Net.WebUtility.HtmlEncode(p.Phone))
         .Replace("%%WindowsEmailAddress%%", System.Net.WebUtility.HtmlEncode(p.Email));
