@@ -10,7 +10,7 @@ namespace M365Samoobsluga.Graph.Services;
 /// Zapis: proxyAddresses jest w Graph tylko do odczytu, więc zmiany idą przez <see cref="IAliasChangeExecutor"/>
 /// (wniosek do administratora albo wąski backend z Exchange Online).
 /// </summary>
-public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExecutor executor, ICurrentUser user, int maxAliases = 5) : IAliasService
+public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExecutor executor, ICurrentUser user, int maxAliases = 5, IReadOnlyCollection<string>? allowedDomains = null) : IAliasService
 {
     public bool AppliesImmediately => executor.AppliesImmediately;
 
@@ -26,7 +26,7 @@ public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExec
             var domains = org?.Value?.FirstOrDefault()?.VerifiedDomains?
                 .Where(d => d.Capabilities?.Contains("Email", StringComparison.OrdinalIgnoreCase) == true && d.Name is not null)
                 .Select(d => d.Name!.ToLowerInvariant()).OrderBy(d => d).ToList() ?? [];
-            return new MailboxAliases(primary.ToLowerInvariant(), secondary, domains);
+            return new MailboxAliases(primary.ToLowerInvariant(), secondary, AddressValidator.FilterAllowedDomains(domains, allowedDomains));
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { throw GraphErrorMapper.Map(ex, "aliasy"); }
     }

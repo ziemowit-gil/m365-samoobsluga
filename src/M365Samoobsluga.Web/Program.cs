@@ -13,6 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 var opts = builder.Configuration.GetSection("Samoobsluga");
 var useMock = opts.GetValue<bool>("UseMockServices");
 var dataDir = opts.GetValue<string>("DataDirectory") ?? "App_Data";
+// Domeny, w których wolno tworzyć aliasy (domyślnie tylko feer.org.pl). Pusta lista oznacza wszystkie zweryfikowane domeny.
+var allowedAliasDomains = opts.GetSection("AllowedAliasDomains").Get<string[]>() ?? ["feer.org.pl"];
 
 // Tenant ID i Client ID mogą pochodzić z konfiguracji albo ze strony /setup (plik App_Data/azuread.json, bez sekretów).
 // Plik wczytujemy na końcu, więc ma pierwszeństwo przed appsettings.json.
@@ -69,7 +71,7 @@ if (!useMock && configured)
         return new ExchangeAliasChangeExecutor(access.Client, () => access.IsConfigured, queue, sp.GetRequiredService<ILogger<ExchangeAliasChangeExecutor>>());
     });
     builder.Services.AddScoped<GraphAliasService>(sp => new GraphAliasService(sp.GetRequiredService<Microsoft.Graph.GraphServiceClient>(),
-        sp.GetRequiredService<IAliasChangeExecutor>(), sp.GetRequiredService<ICurrentUser>(), opts.GetValue("MaxAliasesPerUser", 5)));
+        sp.GetRequiredService<IAliasChangeExecutor>(), sp.GetRequiredService<ICurrentUser>(), opts.GetValue("MaxAliasesPerUser", 5), allowedAliasDomains));
     builder.Services.AddScoped<GraphAutoReplyService>();
     builder.Services.AddScoped<GraphForwardingService>(sp =>
         new GraphForwardingService(sp.GetRequiredService<Microsoft.Graph.GraphServiceClient>(), sp.GetRequiredService<GraphAliasService>()));
@@ -92,7 +94,7 @@ else if (useMock)
     builder.Services.AddScoped<ICurrentUser, CurrentUser>();
     builder.Services.AddSingleton<MockMailbox>();
     builder.Services.AddScoped<IAuditLog, LoggerAuditLog>();
-    builder.Services.AddScoped<IAliasService>(sp => new AuditedAliasService(new MockAliasService(sp.GetRequiredService<MockMailbox>()), sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
+    builder.Services.AddScoped<IAliasService>(sp => new AuditedAliasService(new MockAliasService(sp.GetRequiredService<MockMailbox>(), allowedAliasDomains), sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
     builder.Services.AddScoped<IAutoReplyService>(sp => new AuditedAutoReplyService(new MockAutoReplyService(sp.GetRequiredService<MockMailbox>()), sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
     builder.Services.AddScoped<IForwardingService>(sp => new AuditedForwardingService(new MockForwardingService(sp.GetRequiredService<MockMailbox>(), sp.GetRequiredService<IAliasService>()), sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
     builder.Services.AddSingleton<MockTwoFactorService>();

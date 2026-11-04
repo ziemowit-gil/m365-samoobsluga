@@ -39,6 +39,24 @@ public class AliasAutoTests
         Assert.Contains("zarezerwowana", r.Error);
     }
 
+    [Fact]
+    public void Domeny_aliasow_ograniczone_do_dozwolonych()
+    {
+        var verified = new[] { "feerns.onmicrosoft.com", "FEER.org.pl", "feer.pl" };
+        Assert.Equal(["feer.org.pl"], AddressValidator.FilterAllowedDomains(verified, ["feer.org.pl"]));
+        Assert.Equal(["feerns.onmicrosoft.com", "feer.org.pl", "feer.pl"], AddressValidator.FilterAllowedDomains(verified, []));
+        Assert.Equal(["feerns.onmicrosoft.com", "feer.org.pl", "feer.pl"], AddressValidator.FilterAllowedDomains(verified, null));
+        Assert.Empty(AddressValidator.FilterAllowedDomains(verified, ["inna.pl"]));
+    }
+
+    [Fact]
+    public void Alias_w_niedozwolonej_domenie_jest_odrzucony()
+    {
+        var allowed = AddressValidator.FilterAllowedDomains(["feerns.onmicrosoft.com", "feer.org.pl"], ["feer.org.pl"]);
+        Assert.True(AddressValidator.ValidateAlias("jan.nowak", "feer.org.pl", allowed, []).IsValid);
+        Assert.False(AddressValidator.ValidateAlias("jan.nowak", "feerns.onmicrosoft.com", allowed, []).IsValid);
+    }
+
     sealed class Fake(Func<string, string, (HttpStatusCode, string)> reply) : HttpMessageHandler
     {
         public List<(string Cmdlet, string Body)> Calls = [];

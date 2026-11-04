@@ -12,6 +12,15 @@ public static class AddressValidator
 
     private static readonly Regex Domain = new(@"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$", RegexOptions.Compiled);
 
+    /// <summary>Zostawia tylko domeny dozwolone dla aliasów (np. feer.org.pl). Pusta lista dozwolonych oznacza wszystkie zweryfikowane domeny.</summary>
+    public static IReadOnlyList<string> FilterAllowedDomains(IEnumerable<string> verified, IReadOnlyCollection<string>? allowed)
+    {
+        var list = verified.Select(d => d.Trim().ToLowerInvariant()).Where(d => d != "").Distinct().ToList();
+        if (allowed is null || allowed.Count == 0) return list;
+        var ok = allowed.Select(d => d.Trim().ToLowerInvariant()).ToHashSet();
+        return list.Where(ok.Contains).ToList();
+    }
+
     /// <summary>Lista domen do wyboru: domyślna (np. feer.org.pl) na początku, reszta alfabetycznie. Domyślna spoza listy jest pomijana.</summary>
     public static IReadOnlyList<string> OrderDomains(IEnumerable<string> domains, string? defaultDomain)
     {

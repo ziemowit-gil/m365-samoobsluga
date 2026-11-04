@@ -22,20 +22,20 @@ public sealed class MockMailbox
 {
     public string Primary = "demo@feer.org.pl";
     public List<string> Aliases = ["demo.kontakt@feer.org.pl"];
-    public string[] Domains = ["feer.org.pl", "feer.pl"];
+    public string[] Domains = ["feer.org.pl", "feer.pl", "feerns.onmicrosoft.com"];
     public AutoReplySettings AutoReply = new(false, null, null, "Europe/Warsaw", "", "", AutoReplyAudience.All);
     public ForwardingSettings Forwarding = new(false, null, true, null);
     public SignaturePerson Person = new("Użytkownik Demo", "", "", "demo@feer.org.pl");
 }
 
-public sealed class MockAliasService(MockMailbox m) : IAliasService
+public sealed class MockAliasService(MockMailbox m, IReadOnlyCollection<string>? allowed = null) : IAliasService
 {
     public bool AppliesImmediately => true;
-    public Task<MailboxAliases> GetAsync(CancellationToken ct = default) => Task.FromResult(new MailboxAliases(m.Primary, m.Aliases.ToList(), m.Domains));
+    public Task<MailboxAliases> GetAsync(CancellationToken ct = default) => Task.FromResult(new MailboxAliases(m.Primary, m.Aliases.ToList(), AddressValidator.FilterAllowedDomains(m.Domains, allowed)));
     public Task<AliasOutcome> AddAsync(string a, CancellationToken ct = default)
     {
         var at = a.LastIndexOf('@');
-        var v = AddressValidator.ValidateAlias(at > 0 ? a[..at] : a, at > 0 ? a[(at + 1)..] : "", m.Domains, m.Aliases.Append(m.Primary).ToList());
+        var v = AddressValidator.ValidateAlias(at > 0 ? a[..at] : a, at > 0 ? a[(at + 1)..] : "", AddressValidator.FilterAllowedDomains(m.Domains, allowed), m.Aliases.Append(m.Primary).ToList());
         if (!v.IsValid) throw new UserFacingException(v.Error!);
         m.Aliases.Add(v.Normalized!); return Task.FromResult(AliasOutcome.Applied);
     }
