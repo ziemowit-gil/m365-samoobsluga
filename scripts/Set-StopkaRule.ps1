@@ -46,6 +46,8 @@ param(
     [string]$Organization,
 
     # Pomija łączenie, gdy sesja Exchange Online jest już otwarta.
+    # Bez certyfikatu skrypt loguje się kodem urządzenia (działa na serwerze bez przeglądarki). -Browser wymusza okno przeglądarki.
+    [switch]$Browser,
     [switch]$SkipConnect,
     [switch]$Force
 )
@@ -58,6 +60,8 @@ $MaxChars   = 5000
 if ($Force -and -not $PSBoundParameters.ContainsKey('Confirm')) { $ConfirmPreference = 'None' }
 
 if (-not $SkipConnect) {
+    # -WhatIf nie może obejmować importu modułu ani logowania (inaczej wypisuje "What if: Set Alias" i nie łączy).
+    $savedWhatIf = $WhatIfPreference; $WhatIfPreference = $false
     if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
         throw 'Brak modułu ExchangeOnlineManagement. Zainstaluj: Install-Module ExchangeOnlineManagement -Scope CurrentUser'
     }
@@ -71,7 +75,9 @@ if (-not $SkipConnect) {
     } elseif ($UserPrincipalName) {
         $conn += @{ UserPrincipalName = $UserPrincipalName }
     }
+    if (-not ($AppId -and $CertificateFilePath -and $Organization) -and -not ($AppId -and $CertificateThumbprint -and $Organization) -and -not $Browser) { $conn += @{ Device = $true } }
     Connect-ExchangeOnline @conn
+    $WhatIfPreference = $savedWhatIf
 }
 
 try {
