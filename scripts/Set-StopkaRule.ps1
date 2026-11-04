@@ -65,7 +65,7 @@ if (-not $SkipConnect) {
     if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
         throw 'Brak modułu ExchangeOnlineManagement. Zainstaluj: Install-Module ExchangeOnlineManagement -Scope CurrentUser'
     }
-    Import-Module ExchangeOnlineManagement
+    if ($env:M365_EXO_MODULE_VERSION) { Import-Module ExchangeOnlineManagement -RequiredVersion $env:M365_EXO_MODULE_VERSION } else { Import-Module ExchangeOnlineManagement }
     $conn = @{}; $useAppOnly = $false
     if ($AppId -and $CertificateFilePath -and $Organization) {
         $useAppOnly = $true

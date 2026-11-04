@@ -62,6 +62,7 @@ public sealed class PowerShellExchangeRuleDeployer(ExchangeSettingsProvider prov
             foreach (var a in args) psi.ArgumentList.Add(a);
             var pwd = provider.ReadPassword(settings);
             if (!string.IsNullOrEmpty(pwd)) psi.Environment["M365_EXO_CERT_PASSWORD"] = pwd;
+            if (System.Text.RegularExpressions.Regex.IsMatch(cfg.ModuleVersion ?? "", @"^\d+\.\d+\.\d+$")) psi.Environment["M365_EXO_MODULE_VERSION"] = cfg.ModuleVersion;
             using var p = Process.Start(psi) ?? throw new InvalidOperationException("Nie udało się uruchomić PowerShella.");
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(Timeout);

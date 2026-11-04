@@ -5,7 +5,9 @@
 
 function Get-ExoAppToken {
     param([string]$AppId, [System.Security.Cryptography.X509Certificates.X509Certificate2]$Cert, [string]$Organization)
-    $mod = Get-Module -ListAvailable -Name ExchangeOnlineManagement | Sort-Object Version -Descending | Select-Object -First 1
+    $mods = Get-Module -ListAvailable -Name ExchangeOnlineManagement | Sort-Object Version -Descending
+    $mod = if ($env:M365_EXO_MODULE_VERSION) { $mods | Where-Object { $_.Version -eq [version]$env:M365_EXO_MODULE_VERSION } | Select-Object -First 1 } else { $mods | Select-Object -First 1 }
+    if (-not $mod) { throw "Nie zainstalowano modułu ExchangeOnlineManagement w wersji $($env:M365_EXO_MODULE_VERSION)." }
     $msal = Get-ChildItem -Path $mod.ModuleBase -Recurse -Filter 'Microsoft.Identity.Client.dll' -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $msal) { throw 'Nie znaleziono biblioteki MSAL w module ExchangeOnlineManagement.' }
     if (-not ([System.AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq 'Microsoft.Identity.Client' })) { Add-Type -Path $msal.FullName }

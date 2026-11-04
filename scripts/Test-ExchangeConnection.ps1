@@ -14,7 +14,8 @@ $ErrorActionPreference = 'Stop'
 function Fail([string]$msg) { Write-Host "BŁĄD: $msg" -ForegroundColor Red; exit 1 }
 
 # 1. Moduł
-$mod = Get-Module -ListAvailable -Name ExchangeOnlineManagement | Sort-Object Version -Descending | Select-Object -First 1
+$mods = Get-Module -ListAvailable -Name ExchangeOnlineManagement | Sort-Object Version -Descending
+$mod = if ($env:M365_EXO_MODULE_VERSION) { $mods | Where-Object { $_.Version -eq [version]$env:M365_EXO_MODULE_VERSION } | Select-Object -First 1 } else { $mods | Select-Object -First 1 }
 if (-not $mod) { Fail 'Brak modułu ExchangeOnlineManagement (scripts/install-exchange-tools-ubuntu.sh).' }
 Write-Host "Moduł ExchangeOnlineManagement $($mod.Version), PowerShell $($PSVersionTable.PSVersion)."
 
@@ -59,7 +60,7 @@ try {
 }
 
 # 4. Połączenie certyfikatem (obiekt certyfikatu zamiast ścieżki i hasła)
-Import-Module ExchangeOnlineManagement
+if ($env:M365_EXO_MODULE_VERSION) { Import-Module ExchangeOnlineManagement -RequiredVersion $env:M365_EXO_MODULE_VERSION } else { Import-Module ExchangeOnlineManagement }
 try {
     . (Join-Path $PSScriptRoot 'ExoAuth.ps1')
     Connect-ExoAppOnly -AppId $AppId -CertificateFilePath $CertificateFilePath -Organization $Organization
