@@ -226,3 +226,51 @@ public class ExchangeSetupTests
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
 }
+
+public class StopkaNoticeTests
+{
+    private static readonly SignatureTemplate T = new(new M365Samoobsluga.Core.Models.SignatureOrg { OrgName = "FEER", Phone = "12 210 06 98" }, new());
+
+    [Fact]
+    public void Odbiorcy_rozdzielani_przecinkiem_srednikiem_i_linia_bez_duplikatow()
+    {
+        var r = StopkaNotice.ParseRecipients("Jan@feer.org.pl, anna@feer.org.pl;\nJAN@feer.org.pl  zly-adres <ola@x.pl>");
+        Assert.Equal(["jan@feer.org.pl", "anna@feer.org.pl", "ola@x.pl"], r.Valid);
+        Assert.Equal(["zly-adres"], r.Invalid);
+        Assert.Equal(1, r.Duplicates);
+    }
+
+    [Fact]
+    public void Pusta_lista_jest_odrzucona() => Assert.NotNull(StopkaNotice.Validate("Temat", "Treść", StopkaNotice.ParseRecipients("")));
+
+    [Fact]
+    public void Poprawna_wiadomosc_przechodzi() => Assert.Null(StopkaNotice.Validate("Temat", "Treść", StopkaNotice.ParseRecipients("a@b.pl")));
+
+    [Theory]
+    [InlineData("", "Treść")]
+    [InlineData("Temat\ninny", "Treść")]
+    [InlineData("Temat", "  ")]
+    public void Zly_temat_lub_tresc_jest_odrzucona(string s, string b) => Assert.NotNull(StopkaNotice.Validate(s, b, StopkaNotice.ParseRecipients("a@b.pl")));
+
+    [Fact]
+    public void Za_duzo_odbiorcow_jest_odrzucone()
+    {
+        var many = string.Join(",", Enumerable.Range(0, StopkaNotice.MaxRecipients + 1).Select(i => $"u{i}@example.org"));
+        Assert.Contains("najwyżej", StopkaNotice.Validate("T", "B", StopkaNotice.ParseRecipients(many)));
+    }
+
+    [Fact]
+    public void Wiadomosc_koduje_tresc_zamienia_link_i_dolacza_przyklad_stopki()
+    {
+        var h = StopkaNotice.BuildHtml("Cześć <script>alert(1)</script>\n\nZobacz: {link}", "https://app.example.org/stopka", T);
+        Assert.DoesNotContain("<script", h);
+        Assert.Contains("&lt;script&gt;", h);
+        Assert.Contains("<a href=\"https://app.example.org/stopka\">", h);
+        Assert.DoesNotContain("{link}", h);
+        Assert.Contains("Tel. ogólny: 12 210 06 98", h);
+        Assert.Contains("Imię Nazwisko", h);
+    }
+
+    [Fact]
+    public void Domyslna_tresc_ma_link() => Assert.Contains(StopkaNotice.LinkToken, StopkaNotice.DefaultBody);
+}

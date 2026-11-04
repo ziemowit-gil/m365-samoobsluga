@@ -46,6 +46,8 @@ else
     @if (execOk is not null) { <p class="msg ok" role="status">@execOk</p> }
     <div class="field check"><input id="autod" type="checkbox" @bind="autoDeploy" disabled="@(!Deployer.IsConfigured)" /><label for="autod">Automatycznie zakładaj i aktualizuj regułę po każdej zmianie szablonu</label></div>
     <p class="hint">Aplikacja sprawdza też co godzinę, czy reguła w Exchange zgadza się z szablonem, i w razie różnicy ją aktualizuje. Używa trybu wybranego wyżej.</p>
+    <div class="field check"><input id="clra" type="checkbox" @bind="clearAfter" disabled="@(!Deployer.IsConfigured)" /><label for="clra">Po ręcznym wdrożeniu wyczyść też dotychczasowe podpisy użytkowników, żeby nowa stopka je zastąpiła</label></div>
+    <p class="hint">Dotyczy podpisów zapisanych w Exchange (z kopią zapasową w App_Data/signature-backups). Robi się to tylko po kliknięciu „Wdróż regułę teraz”, a nie przy automatycznych aktualizacjach.</p>
     <p>
         <button type="button" disabled="@(!Deployer.IsConfigured || execBusy)" @onclick="SaveAuto">Zapisz ustawienie automatyki</button>
         <button type="button" disabled="@(!Deployer.IsConfigured || execBusy || limitError is not null)" @onclick="DeployNow">Wdróż regułę teraz</button>
@@ -96,7 +98,7 @@ else
         });
         loading = false;
     }
-    ExchangeAutomation auto = ExchangeAutomation.Default; bool autoDeploy;
+    ExchangeAutomation auto = ExchangeAutomation.Default; bool autoDeploy; bool clearAfter;
     string? execError, execOk, execOutput; bool execBusy; bool clearAll; string clearMailbox = "", clearConfirm = "";
 
     async Task Run(Func<Task<ExchangeOpResult>> op, string okMessage)
@@ -117,6 +119,11 @@ else
         var r = await Deployer.DeployAsync(html, mode);
         auto = auto with { Mode = mode, LastHash = r.Success ? ExchangeCommandBuilder.TemplateHash(html, mode) : auto.LastHash, LastDeployedAt = DateTimeOffset.UtcNow, LastResult = (r.Success ? "OK" : "Błąd") };
         await AutoStore.SaveAsync(auto);
+        if (r.Success && clearAfter)
+        {
+            var c = await Deployer.ClearSignaturesAsync(null, true);
+            return new ExchangeOpResult(c.Success, r.Output + "\n\nCzyszczenie podpisów: " + c.Output);
+        }
         return r;
     }, "Reguła została wdrożona w Exchange.");
 

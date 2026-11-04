@@ -99,6 +99,11 @@ builder.Services.AddScoped<TemplateStoreAccessor>(sp => new TemplateStoreAccesso
 builder.Services.AddScoped<ISignatureTemplateStore>(sp =>
     new AuditedSignatureTemplateStore(sp.GetRequiredService<TemplateStoreAccessor>().Raw, sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
 
+// Powiadomienia o stopce: wysyłka ze skrzynki zalogowanego administratora (Mail.Send, zakres dobierany dopiero przy wysyłce).
+builder.Services.AddScoped<INoticeMailer>(sp => new AuditedNoticeMailer(
+    useMock ? new MockNoticeMailer() : new GraphNoticeMailer(sp.GetRequiredService<Microsoft.Graph.GraphServiceClient>()),
+    sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
+
 // Reguła stopki w Exchange: wdrożenie, usunięcie i czyszczenie podpisów z poziomu aplikacji przez PowerShell (certyfikat aplikacji).
 var exchange = opts.GetSection("Exchange").Get<ExchangeSettings>() ?? new ExchangeSettings();
 builder.Services.AddSingleton(exchange);

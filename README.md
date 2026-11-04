@@ -55,6 +55,12 @@ Każda zmiana trafia do dziennika jako JSON (`AUDYT {...}`: czas UTC, UPN, akcja
 5. Kliknij Grant admin consent. Zakres hasła zawsze wymaga zgody administratora, a bez zgody użytkownicy zobaczą prośbę o nią przy logowaniu.
 6. W Enterprise applications ustaw Assignment required na Tak i przypisz wolontariuszy, którzy mają mieć dostęp.
 
+### Powiadomienie o stopce dla użytkowników
+
+Strona Administrator: powiadomienie wysyła osobom wiadomość, że ustawiono im jednolitą stopkę. Wpisujesz temat, treść (zapis `{link}` zamienia się na adres strony Stopka) i listę adresów. Aplikacja pokazuje podgląd wiadomości razem z przykładem stopki i liczy odbiorców (powtórzenia i niepoprawne adresy są wyłapywane, jednorazowo do 200 osób). Przycisk „Wyślij próbnie do mnie” wysyła wiadomość na twój adres, a wysyłka do całej listy wymaga zaznaczenia potwierdzenia. Wiadomość wychodzi osobno do każdej osoby, ze skrzynki zalogowanego administratora (`POST /me/sendMail`), więc konto bez skrzynki nie wyśle wiadomości. Każda wysyłka trafia do dziennika audytu.
+
+Wymaga delegowanego uprawnienia `Mail.Send`. Aplikacja prosi o nie dopiero przy pierwszej wysyłce, więc zgodę wyrażają tylko administratorzy, którzy wysyłają, a nie wszyscy użytkownicy. Dodaj je w rejestracji (API permissions) albo uruchom `setup-entra.sh` z opcją `--with-mail-send`.
+
 ### Automatyczna konfiguracja rejestracji
 
 Skrypt `scripts/setup-entra.sh` robi kroki 1 do 6 za ciebie przez Azure CLI (`az`): tworzy lub uzupełnia rejestrację aplikacji (jedna dzierżawa), dodaje adresy przekierowania i adres wylogowania, dodaje cztery uprawnienia delegowane Graph (identyfikatory zakresów odczytuje z twojej dzierżawy, nie są wpisane na sztywno), udziela zgody administratora i tworzy sekret klienta albo dodaje certyfikat (`--cert`). Sekret trafia prosto do pliku z prawami 600 (`--write-env`) i nie jest wyświetlany. Skrypt pyta o potwierdzenie przed zmianami, a `--dry-run` pokazuje sam plan.

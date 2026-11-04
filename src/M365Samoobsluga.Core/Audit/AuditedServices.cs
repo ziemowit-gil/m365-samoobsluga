@@ -78,3 +78,8 @@ public sealed class AuditedExchangeRuleDeployer(IExchangeRuleDeployer inner, IAu
     public Task<ExchangeOpResult> RemoveAsync(CancellationToken ct = default) => Run("exchange.regula.usun", null, () => inner.RemoveAsync(ct));
     public Task<ExchangeOpResult> ClearSignaturesAsync(string? mailbox, bool all, CancellationToken ct = default) => Run("exchange.podpisy.czyszczenie", all ? "wszystkie skrzynki" : mailbox, () => inner.ClearSignaturesAsync(mailbox, all, ct));
 }
+
+public sealed class AuditedNoticeMailer(INoticeMailer inner, IAuditLog log, ICurrentUser user) : AuditBase(log, user), INoticeMailer
+{
+    public Task SendAsync(string to, string subject, string html, CancellationToken ct = default) => Run("mailing.stopka.wyslij", to, () => inner.SendAsync(to, subject, html, ct));
+}

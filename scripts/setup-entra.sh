@@ -22,6 +22,7 @@ WRITE_ENV=""
 WRITE_AZUREAD=""
 REQUIRE_ASSIGNMENT=0
 SKIP_CONSENT=0
+WITH_MAIL_SEND=0
 DRY_RUN=0
 SECRET_YEARS=1
 GRAPH_APP_ID="00000003-0000-0000-c000-000000000000"   # Microsoft Graph (stały identyfikator usługi)
@@ -39,6 +40,7 @@ Użycie: $0 --base-url <https://adres-aplikacji> [opcje]
   --write-env <plik>        dopisz poświadczenia do pliku środowiskowego (np. /etc/m365-samoobsluga.env), prawa 600
   --write-azuread <plik>    zapisz Tenant ID i Client ID (np. .../App_Data/azuread.json)
   --require-assignment      wymagaj przypisania użytkowników do aplikacji (Enterprise applications)
+  --with-mail-send          dodaj uprawnienie Mail.Send (powiadomienia o stopce wysyłane ze skrzynki administratora)
   --skip-consent            nie udzielaj zgody administratora (zrobisz to ręcznie w Entra)
   --dry-run                 tylko pokaż plan, niczego nie zmieniaj
 EOF
@@ -54,6 +56,7 @@ while [[ $# -gt 0 ]]; do
     --write-env) WRITE_ENV="${2:-}"; shift 2 ;;
     --write-azuread) WRITE_AZUREAD="${2:-}"; shift 2 ;;
     --require-assignment) REQUIRE_ASSIGNMENT=1; shift ;;
+    --with-mail-send) WITH_MAIL_SEND=1; shift ;;
     --skip-consent) SKIP_CONSENT=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -61,6 +64,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+[[ $WITH_MAIL_SEND -eq 1 ]] && SCOPES+=(Mail.Send)
 [[ -n "$BASE_URL" ]] || { echo "Brak --base-url." >&2; usage >&2; exit 2; }
 if [[ "$BASE_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?/?$ || "$BASE_URL" =~ ^http://(localhost|127\.0\.0\.1)(:[0-9]+)?/?$ ]]; then :; else
   echo "Adres musi mieć postać https://host[:port] (http tylko dla localhost): $BASE_URL" >&2; exit 2

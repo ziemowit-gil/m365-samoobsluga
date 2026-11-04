@@ -1,0 +1,89 @@
+@page "/admin/mailing"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "Admin")]
+@inject INoticeMailer Mailer
+@inject ISignatureTemplateStore Store
+@inject ICurrentUser User
+@inject NavigationManager Nav
+@inject UiGuard Guard
+<PageTitle>Administrator: powiadomienie o stopce · Samoobsługa poczty</PageTitle>
+<h1>Powiadomienie o stopce</h1>
+<p>Wyślij osobom informację, że ustawiono im jednolitą stopkę. Wiadomość wychodzi z twojej skrzynki, osobno do każdej osoby (odbiorcy nie widzą swoich adresów). Pod tekstem pojawia się przykład stopki według aktualnego wzoru.</p>
+<p class="msg info">Przy pierwszej wysyłce Microsoft poprosi cię o zgodę na wysyłanie poczty w twoim imieniu (uprawnienie Mail.Send). Zgodę wyrażasz tylko ty, nie pozostali użytkownicy. Konto bez skrzynki pocztowej nie wyśle wiadomości.</p>
+<Status Error="@error" Success="@ok" />
+<EditForm Model="m" OnSubmit="Noop" FormName="mailing">
+    <div class="field"><label for="sub">Temat</label><input id="sub" type="text" maxlength="200" @bind="m.Subject" @bind:event="oninput" /></div>
+    <div class="field">
+        <label for="body">Treść</label>
+        <p class="hint" id="bh">Akapity oddzielaj pustą linią. Zapis <code>{link}</code> zamieni się na adres aplikacji (strona Stopka).</p>
+        <textarea id="body" aria-describedby="bh" maxlength="5000" @bind="m.Body" @bind:event="oninput"></textarea>
+    </div>
+    <div class="field">
+        <label for="rcp">Odbiorcy</label>
+        <p class="hint" id="rh">Adresy e-mail oddzielone przecinkiem, średnikiem lub nową linią. Do @StopkaNotice.MaxRecipients osób jednorazowo.</p>
+        <textarea id="rcp" aria-describedby="rh" @bind="m.Recipients" @bind:event="oninput"></textarea>
+    </div>
+</EditForm>
+
+<h2>Podgląd wiadomości</h2>
+<p><strong>Temat:</strong> @m.Subject</p>
+<div class="preview" role="region" aria-label="Podgląd wiadomości">@((MarkupString)Html)</div>
+<p aria-live="polite">Odbiorców: <strong>@parsed.Valid.Count</strong>@if (parsed.Duplicates > 0) { <text>, pominięto powtórzenia: @parsed.Duplicates</text> }@if (parsed.Invalid.Count > 0) { <text>, <span class="msg error">niepoprawne adresy: @string.Join(", ", parsed.Invalid.Take(5))@(parsed.Invalid.Count > 5 ? "…" : "")</span></text> }</p>
+
+<h2>Wysyłka</h2>
+<p><button type="button" class="secondary" disabled="@(busy || !SubjectBodyOk)" @onclick="SendTest">Wyślij próbnie do mnie (@User.Current.UserPrincipalName)</button></p>
+<div class="field check"><input id="conf" type="checkbox" @bind="confirmed" /><label for="conf">Potwierdzam wysyłkę do @parsed.Valid.Count osób</label></div>
+<p><button type="button" disabled="@(busy || !confirmed || Validation is not null)" @onclick="SendAll">Wyślij do wszystkich</button></p>
+@if (Validation is not null && (m.Recipients.Length > 0)) { <p class="hint">@Validation</p> }
+@if (results.Count > 0)
+{
+    <h2>Wynik</h2>
+    <p>Wysłano: <strong>@results.Count(r => r.Ok)</strong>, błędy: <strong>@results.Count(r => !r.Ok)</strong>.</p>
+    @if (results.Any(r => !r.Ok))
+    {
+        <ul>@foreach (var r in results.Where(r => !r.Ok).Take(20)) { <li>@r.To: @r.Error</li> }</ul>
+    }
+}
+@code {
+    sealed class Form
+    {
+        public string Subject { get; set; } = StopkaNotice.DefaultSubject;
+        public string Body { get; set; } = StopkaNotice.DefaultBody;
+        public string Recipients { get; set; } = "";
+    }
+    sealed record Result(string To, bool Ok, string? Error);
+    Form m = new(); SignatureTemplate template = new(new(), new()); List<Result> results = [];
+    string? error, ok; bool busy, confirmed;
+    ParsedRecipients parsed => StopkaNotice.ParseRecipients(m.Recipients);
+    string? Validation => StopkaNotice.Validate(m.Subject, m.Body, parsed);
+    bool SubjectBodyOk => StopkaNotice.Validate(m.Subject, m.Body, new ParsedRecipients(["x@example.org"], [], 0)) is null;
+    string Html => StopkaNotice.BuildHtml(m.Body, Nav.BaseUri + "stopka", template);
+
+    protected override async Task OnInitializedAsync() => error = await Guard.RunAsync(async () => template = await Store.GetAsync());
+    void Noop() { }
+
+    async Task SendTest() => await Send([User.Current.UserPrincipalName], "Wiadomość próbna została wysłana na twój adres.");
+    async Task SendAll()
+    {
+        if (Validation is not null) { error = Validation; return; }
+        await Send(parsed.Valid.ToList(), null);
+        confirmed = false;
+    }
+
+    async Task Send(List<string> to, string? okMessage)
+    {
+        busy = true; error = ok = null; results = [];
+        var html = Html;
+        error = await Guard.RunAsync(async () =>
+        {
+            foreach (var addr in to)
+            {
+                try { await Mailer.SendAsync(addr, m.Subject.Trim(), html); results.Add(new(addr, true, null)); }
+                catch (UserFacingException ex) { results.Add(new(addr, false, ex.Message)); }
+                await Task.Delay(150);
+            }
+        });
+        if (error is null) ok = okMessage ?? $"Wysłano {results.Count(r => r.Ok)} z {to.Count} wiadomości.";
+        busy = false;
+    }
+}

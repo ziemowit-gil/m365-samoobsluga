@@ -125,3 +125,10 @@ public sealed class MockExchangeDeployer : IExchangeRuleDeployer
     public Task<ExchangeOpResult> ClearSignaturesAsync(string? mailbox, bool all, CancellationToken ct = default) =>
         Task.FromResult(new ExchangeOpResult(true, $"(demo) Wyczyszczono podpisy: {(all ? "wszystkie skrzynki" : mailbox)}. Kopia zapasowa zapisana."));
 }
+
+/// <summary>Tryb demo: niczego nie wysyła, tylko udaje sukces.</summary>
+public sealed class MockNoticeMailer : INoticeMailer
+{
+    public Task SendAsync(string to, string subject, string html, CancellationToken ct = default) =>
+        StopkaNotice.IsValidEmail(to) ? Task.CompletedTask : throw new UserFacingException("Niepoprawny adres odbiorcy.");
+}
