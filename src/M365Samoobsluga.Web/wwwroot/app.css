@@ -50,3 +50,20 @@ th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid var(--borde
 #blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #fff3b0; color: var(--text); padding: 1rem; border-top: 3px solid var(--text); z-index: 20; }
 #blazor-error-ui .dismiss { cursor: pointer; margin-left: 1rem; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Rozwijane menu Administrator (natywny <details>: klawiatura i czytnik ekranu działają bez skryptu) */
+.nav-dd-item { position: relative; }
+.nav-dd summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 0.9rem; min-height: 44px; border-radius: 4px; color: var(--text); }
+.nav-dd summary::-webkit-details-marker { display: none; }
+.nav-dd summary::after { content: ""; border: solid currentColor; border-width: 0 2px 2px 0; padding: 3px; transform: rotate(45deg); margin-top: -3px; }
+.nav-dd[open] summary::after { transform: rotate(-135deg); margin-top: 3px; }
+.nav-dd summary:hover, .nav-dd[open] summary { background: #dcdcdc; }
+.nav-dd:has(a[aria-current="page"]) summary { background: var(--primary); color: #fff; }
+.nav-dd:has(a[aria-current="page"]) summary:hover { background: var(--primary-hover); }
+.nav-dd ul { position: absolute; z-index: 15; top: 100%; right: 0; left: auto; width: max-content; min-width: 16rem; max-width: calc(100vw - 2rem); margin: 0.25rem 0 0; padding: 0.35rem; background: #fff; border: 2px solid var(--text); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.18); flex-direction: column; flex-wrap: nowrap; gap: 0; }
+.nav-dd ul li { display: block; }
+.nav-dd ul a { display: block; padding: 0.55rem 0.8rem; }
+@media (max-width: 640px) { .nav-dd ul { position: static; box-shadow: none; margin-top: 0.25rem; } }
+
+details.manual { margin: 1rem 0; border: 2px solid var(--border); border-radius: 4px; padding: 0.4rem 1rem; }
+details.manual summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }

@@ -67,7 +67,7 @@ else
         <div class="field"><label for="cc">Aby potwierdzić, wpisz słowo WYCZYŚĆ</label><input id="cc" type="text" autocomplete="off" @bind="clearConfirm" /></div>
     </fieldset>
     <p><button type="button" class="secondary" disabled="@(!Deployer.IsConfigured || execBusy || clearConfirm.Trim() != "WYCZYŚĆ")" @onclick="ClearSignatures">Wyczyść podpisy</button></p>
-    <h2>Jak wdrożyć ręcznie</h2>
+    <details class="manual"><summary>Wdrożenie ręczne (alternatywa dla przycisków wyżej)</summary>
     <ol>
         <li>Zainstaluj moduł: <code>Install-Module ExchangeOnlineManagement</code>.</li>
         <li>Połącz się kontem z rolą do reguł transportowych: <code>Connect-ExchangeOnline</code>.</li>
@@ -76,6 +76,7 @@ else
         <li>Wróć tu, wybierz Enforce, skopiuj nowy skrypt i uruchom go jeszcze raz.</li>
         <li>Aby usunąć regułę: <code>@ExchangeRuleBuilder.BuildRemoveScript()</code></li>
     </ol>
+    </details>
 }
 @code {
     static readonly SignaturePerson Sample = new("Anna Kowalska", "Koordynatorka wolontariatu", "+48 600 100 200", "anna.kowalska@example.org");
