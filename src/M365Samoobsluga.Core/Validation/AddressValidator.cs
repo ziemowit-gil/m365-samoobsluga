@@ -12,43 +12,26 @@ public static class AddressValidator
 
     private static readonly Regex Domain = new(@"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$", RegexOptions.Compiled);
 
-    /// <summary>Zostawia tylko domeny dozwolone dla aliasów (np. feer.org.pl). Pusta lista dozwolonych oznacza wszystkie zweryfikowane domeny.</summary>
-    public static IReadOnlyList<string> FilterAllowedDomains(IEnumerable<string> verified, IReadOnlyCollection<string>? allowed)
-    {
-        var list = verified.Select(d => d.Trim().ToLowerInvariant()).Where(d => d != "").Distinct().ToList();
-        if (allowed is null || allowed.Count == 0) return list;
-        var ok = allowed.Select(d => d.Trim().ToLowerInvariant()).ToHashSet();
-        return list.Where(ok.Contains).ToList();
-    }
-
-    /// <summary>Lista domen do wyboru: domyślna (np. feer.org.pl) na początku, reszta alfabetycznie. Domyślna spoza listy jest pomijana.</summary>
-    public static IReadOnlyList<string> OrderDomains(IEnumerable<string> domains, string? defaultDomain)
-    {
-        var list = domains.Select(d => d.Trim().ToLowerInvariant()).Where(d => d != "").Distinct().OrderBy(d => d, StringComparer.Ordinal).ToList();
-        var def = (defaultDomain ?? "").Trim().ToLowerInvariant();
-        if (def != "" && list.Remove(def)) list.Insert(0, def);
-        return list;
-    }
+    /// <summary>Jedyna domena, w której wolno tworzyć aliasy. Na sztywno, bez ustawień i bez zależności od domen tenanta.</summary>
+    public const string AliasDomain = "feer.org.pl";
 
     /// <summary>
-    /// Alias: wpisana część lokalna (przed @) + domena z listy zweryfikowanych domen tenanta.
+    /// Alias: wpisana część lokalna (przed @) + domena, która musi być <see cref="AliasDomain"/>.
     /// Zwraca znormalizowany adres małymi literami.
     /// </summary>
     public static ValidationResult ValidateAlias(string? localPart, string? domain,
-        IReadOnlyCollection<string> verifiedDomains, IReadOnlyCollection<string> existingAddresses)
+        IReadOnlyCollection<string> existingAddresses)
     {
         var lp = (localPart ?? "").Trim().ToLowerInvariant();
         var dom = (domain ?? "").Trim().ToLowerInvariant();
 
         if (lp.Length == 0) return ValidationResult.Fail("Wpisz nazwę aliasu (część przed znakiem @).");
-        if (lp.Contains('@')) return ValidationResult.Fail("Wpisz tylko część przed znakiem @; domenę wybierz z listy.");
+        if (lp.Contains('@')) return ValidationResult.Fail("Wpisz tylko część przed znakiem @; domena jest stała.");
         if (lp.Length > 64) return ValidationResult.Fail("Nazwa aliasu może mieć najwyżej 64 znaki.");
         if (!LocalPart.IsMatch(lp))
             return ValidationResult.Fail("Nazwa aliasu może zawierać tylko litery a-z bez polskich znaków, cyfry oraz pojedyncze kropki, myślniki lub podkreślniki w środku.");
         if (Reserved.Contains(lp)) return ValidationResult.Fail("Ta nazwa jest zarezerwowana. Wybierz inną.");
-        if (dom.Length == 0) return ValidationResult.Fail("Wybierz domenę aliasu.");
-        if (!verifiedDomains.Contains(dom, StringComparer.OrdinalIgnoreCase))
-            return ValidationResult.Fail("Ta domena nie jest zweryfikowana w organizacji. Wybierz domenę z listy.");
+        if (dom != AliasDomain) return ValidationResult.Fail($"Aliasy można tworzyć tylko w domenie {AliasDomain}.");
 
         var address = $"{lp}@{dom}";
         if (existingAddresses.Contains(address, StringComparer.OrdinalIgnoreCase))

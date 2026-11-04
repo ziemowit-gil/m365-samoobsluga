@@ -3,7 +3,6 @@
 @attribute [Authorize]
 @inject IAliasService Svc
 @inject UiGuard Guard
-@inject IConfiguration Config
 <PageTitle>Aliasy · Samoobsługa poczty</PageTitle>
 <h1>Aliasy e-mail</h1>
 @if (loading) { <p role="status">Wczytywanie…</p> }
@@ -33,25 +32,18 @@ else
 <h2>Dodaj alias</h2>
 <EditForm Model="this" OnSubmit="Add" FormName="alias">
     <div class="field"><label for="lp">Nazwa aliasu (przed znakiem @@)</label><input id="lp" type="text" autocomplete="off" @bind="local" /></div>
-    <div class="field"><label for="dom">Domena</label>
-        <select id="dom" @bind="domain">
-            @foreach (var d in Domains)
-            {
-                <option value="@d">@d</option>
-            }
-        </select></div>
+    <p>Domena aliasu jest stała: <strong>@@@AddressValidator.AliasDomain</strong></p>
     <button type="submit" disabled="@busy">Dodaj</button>
 </EditForm>
 }
 @code {
-    IReadOnlyList<string> Domains => AddressValidator.OrderDomains(data?.VerifiedDomains ?? [], Config["Samoobsluga:DefaultAliasDomain"]);
-    MailboxAliases? data; bool loading = true, busy; string? error, ok; string local = "", domain = "";
+    MailboxAliases? data; bool loading = true, busy; string? error, ok; string local = "";
     protected override async Task OnInitializedAsync() { await Load(); loading = false; }
-    async Task Load() { error = await Guard.RunAsync(async () => { data = await Svc.GetAsync(); if (domain == "") domain = Domains.FirstOrDefault() ?? ""; }); }
+    async Task Load() { error = await Guard.RunAsync(async () => { data = await Svc.GetAsync(); }); }
     async Task Add()
     {
         busy = true; ok = null;
-        var v = AddressValidator.ValidateAlias(local, domain, data!.VerifiedDomains, data.SecondaryAddresses.Append(data.PrimaryAddress).ToList());
+        var v = AddressValidator.ValidateAlias(local, AddressValidator.AliasDomain, data.SecondaryAddresses.Append(data.PrimaryAddress).ToList());
         var outcome = AliasOutcome.Queued;
         error = v.IsValid ? await Guard.RunAsync(async () => outcome = await Svc.AddAsync(v.Normalized!)) : v.Error;
         if (error is null) { ok = outcome == AliasOutcome.Applied ? "Alias dodany. Działa od razu (zmiany w Exchange mogą być widoczne po kilku minutach)." : "Nie mogliśmy dodać aliasu od razu, więc zapisaliśmy wniosek dla administratora."; local = ""; await Load(); }

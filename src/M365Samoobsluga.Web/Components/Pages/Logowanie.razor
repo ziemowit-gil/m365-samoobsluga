@@ -29,7 +29,7 @@
 @code {
     [SupplyParameterFromQuery(Name = "ReturnUrl")] public string? ReturnUrl { get; set; }
     string SignInHref => "MicrosoftIdentity/Account/SignIn?redirectUri=" + Uri.EscapeDataString(AzureSetup.SafeReturnUrl(ReturnUrl));
-    string Domain => Config["Samoobsluga:DefaultAliasDomain"] is { Length: > 0 } d ? d : "swojej organizacji";
+    string Domain => AddressValidator.AliasDomain;
 
     protected override async Task OnInitializedAsync()
     {

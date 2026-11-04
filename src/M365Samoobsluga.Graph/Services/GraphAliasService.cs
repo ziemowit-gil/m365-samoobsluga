@@ -10,7 +10,7 @@ namespace M365Samoobsluga.Graph.Services;
 /// Zapis: proxyAddresses jest w Graph tylko do odczytu, więc zmiany idą przez <see cref="IAliasChangeExecutor"/>
 /// (wniosek do administratora albo wąski backend z Exchange Online).
 /// </summary>
-public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExecutor executor, ICurrentUser user, int maxAliases = 5, IReadOnlyCollection<string>? allowedDomains = null) : IAliasService
+public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExecutor executor, ICurrentUser user, int maxAliases = 5) : IAliasService
 {
     public bool AppliesImmediately => executor.AppliesImmediately;
 
@@ -22,11 +22,7 @@ public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExec
             var proxies = me?.ProxyAddresses ?? [];
             var primary = proxies.FirstOrDefault(p => p.StartsWith("SMTP:", StringComparison.Ordinal))?[5..] ?? me?.Mail ?? me?.UserPrincipalName ?? "";
             var secondary = proxies.Where(p => p.StartsWith("smtp:", StringComparison.Ordinal)).Select(p => p[5..].ToLowerInvariant()).OrderBy(p => p).ToList();
-            var org = await graph.Organization.GetAsync(cancellationToken: ct);
-            var domains = org?.Value?.FirstOrDefault()?.VerifiedDomains?
-                .Where(d => d.Capabilities?.Contains("Email", StringComparison.OrdinalIgnoreCase) == true && d.Name is not null)
-                .Select(d => d.Name!.ToLowerInvariant()).OrderBy(d => d).ToList() ?? [];
-            return new MailboxAliases(primary.ToLowerInvariant(), secondary, AddressValidator.FilterAllowedDomains(domains, allowedDomains));
+            return new MailboxAliases(primary.ToLowerInvariant(), secondary, [AddressValidator.AliasDomain]);
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { throw GraphErrorMapper.Map(ex, "aliasy"); }
     }
@@ -36,7 +32,7 @@ public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExec
         var cur = await GetAsync(ct);
         var all = cur.SecondaryAddresses.Append(cur.PrimaryAddress).ToList();
         var at = address.LastIndexOf('@');
-        var v = at > 0 ? AddressValidator.ValidateAlias(address[..at], address[(at + 1)..], cur.VerifiedDomains, all)
+        var v = at > 0 ? AddressValidator.ValidateAlias(address[..at], address[(at + 1)..], all)
                        : ValidationResult.Fail("Nieprawidłowy adres aliasu.");
         if (!v.IsValid) throw new UserFacingException(v.Error!);
         if (cur.SecondaryAddresses.Count >= maxAliases) throw new UserFacingException($"Możesz mieć najwyżej {maxAliases} dodatkowych aliasów. Usuń jeden, żeby dodać nowy.");

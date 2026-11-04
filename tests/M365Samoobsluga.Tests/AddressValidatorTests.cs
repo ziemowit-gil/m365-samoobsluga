@@ -4,41 +4,41 @@ namespace M365Samoobsluga.Tests;
 
 public class AddressValidatorTests
 {
-    private static readonly string[] Domains = ["feer.org.pl", "feer.pl"];
-
     [Theory]
     [InlineData("jan.kowalski", "feer.org.pl", "jan.kowalski@feer.org.pl")]
-    [InlineData("  Jan-K  ", "FEER.PL", "jan-k@feer.pl")]
-    [InlineData("a_b", "feer.pl", "a_b@feer.pl")]
+    [InlineData("  Jan-K  ", "FEER.ORG.PL", "jan-k@feer.org.pl")]
+    [InlineData("a_b", "feer.org.pl", "a_b@feer.org.pl")]
     public void Alias_poprawny_jest_normalizowany(string lp, string dom, string expected)
     {
-        var r = AddressValidator.ValidateAlias(lp, dom, Domains, []);
+        var r = AddressValidator.ValidateAlias(lp, dom, []);
         Assert.True(r.IsValid);
         Assert.Equal(expected, r.Normalized);
     }
 
     [Theory]
-    [InlineData("", "feer.pl")]
-    [InlineData("jan@x", "feer.pl")]
-    [InlineData("żółw", "feer.pl")]
-    [InlineData(".jan", "feer.pl")]
-    [InlineData("jan..k", "feer.pl")]
+    [InlineData("", "feer.org.pl")]
+    [InlineData("jan@x", "feer.org.pl")]
+    [InlineData("żółw", "feer.org.pl")]
+    [InlineData(".jan", "feer.org.pl")]
+    [InlineData("jan..k", "feer.org.pl")]
     [InlineData("jan", "")]
     [InlineData("jan", "obca.com")]
+    [InlineData("jan", "feer.pl")]
+    [InlineData("jan", "feerns.onmicrosoft.com")]
     public void Alias_niepoprawny_zwraca_komunikat(string lp, string dom)
     {
-        var r = AddressValidator.ValidateAlias(lp, dom, Domains, []);
+        var r = AddressValidator.ValidateAlias(lp, dom, []);
         Assert.False(r.IsValid);
         Assert.False(string.IsNullOrWhiteSpace(r.Error));
     }
 
     [Fact]
     public void Alias_za_dlugi_odrzucony() =>
-        Assert.False(AddressValidator.ValidateAlias(new string('a', 65), "feer.pl", Domains, []).IsValid);
+        Assert.False(AddressValidator.ValidateAlias(new string('a', 65), "feer.org.pl", []).IsValid);
 
     [Fact]
     public void Alias_duplikat_bez_wzgledu_na_wielkosc_liter() =>
-        Assert.False(AddressValidator.ValidateAlias("jan", "feer.pl", Domains, ["JAN@feer.pl"]).IsValid);
+        Assert.False(AddressValidator.ValidateAlias("jan", "feer.org.pl", ["JAN@feer.org.pl"]).IsValid);
 
     [Theory]
     [InlineData("anna@example.org", "anna@example.org")]
@@ -75,12 +75,4 @@ public class AddressValidatorTests
     [Fact]
     public void Przekierowanie_zablokowana_domena() =>
         Assert.False(AddressValidator.ValidateForwardingAddress("a@zle.pl", [], ["zle.pl"]).IsValid);
-
-    [Fact]
-    public void Domena_domyslna_jest_pierwsza_a_reszta_alfabetycznie() =>
-        Assert.Equal(["feer.org.pl", "feer.onmicrosoft.com", "inna.pl"], AddressValidator.OrderDomains(["inna.pl", "feer.onmicrosoft.com", "FEER.org.pl"], "feer.org.pl"));
-
-    [Fact]
-    public void Domyslna_spoza_listy_nie_dodaje_sie() =>
-        Assert.Equal(["a.pl", "b.pl"], AddressValidator.OrderDomains(["b.pl", "a.pl"], "feer.org.pl"));
 }

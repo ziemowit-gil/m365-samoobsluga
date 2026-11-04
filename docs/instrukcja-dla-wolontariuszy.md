@@ -17,7 +17,7 @@ Po zalogowaniu widzisz stronę Start z kafelkami. U góry są zakładki (Konto, 
 
 Alias to dodatkowy adres, na który przychodzi poczta do Twojej skrzynki, na przykład imie.nazwisko@feer.org.pl obok adresu głównego.
 
-- Dodanie: wpisz część przed znakiem @, domena jest jedna: feer.org.pl. Wybierz „Dodaj alias”.
+- Dodanie: wpisz część przed znakiem @, domena jest stała: feer.org.pl. Wybierz „Dodaj alias”.
 - Dozwolone są litery, cyfry, kropka, myślnik i podkreślenie.
 - Nie da się użyć nazw zastrzeżonych (admin, postmaster, abuse, noreply, info, kontakt, biuro i podobnych) ani adresu zajętego przez kogoś innego. Panel napisze, czego dotyczy odmowa.
 - Masz limit 5 aliasów.

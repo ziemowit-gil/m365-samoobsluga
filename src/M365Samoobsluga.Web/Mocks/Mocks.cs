@@ -28,14 +28,14 @@ public sealed class MockMailbox
     public SignaturePerson Person = new("Użytkownik Demo", "", "", "demo@feer.org.pl");
 }
 
-public sealed class MockAliasService(MockMailbox m, IReadOnlyCollection<string>? allowed = null) : IAliasService
+public sealed class MockAliasService(MockMailbox m) : IAliasService
 {
     public bool AppliesImmediately => true;
-    public Task<MailboxAliases> GetAsync(CancellationToken ct = default) => Task.FromResult(new MailboxAliases(m.Primary, m.Aliases.ToList(), AddressValidator.FilterAllowedDomains(m.Domains, allowed)));
+    public Task<MailboxAliases> GetAsync(CancellationToken ct = default) => Task.FromResult(new MailboxAliases(m.Primary, m.Aliases.ToList(), [AddressValidator.AliasDomain]));
     public Task<AliasOutcome> AddAsync(string a, CancellationToken ct = default)
     {
         var at = a.LastIndexOf('@');
-        var v = AddressValidator.ValidateAlias(at > 0 ? a[..at] : a, at > 0 ? a[(at + 1)..] : "", AddressValidator.FilterAllowedDomains(m.Domains, allowed), m.Aliases.Append(m.Primary).ToList());
+        var v = AddressValidator.ValidateAlias(at > 0 ? a[..at] : a, at > 0 ? a[(at + 1)..] : "", m.Aliases.Append(m.Primary).ToList());
         if (!v.IsValid) throw new UserFacingException(v.Error!);
         m.Aliases.Add(v.Normalized!); return Task.FromResult(AliasOutcome.Applied);
     }

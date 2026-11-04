@@ -70,7 +70,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        m.Domain = Config["Samoobsluga:DefaultAliasDomain"] ?? "";
+        m.Domain = AddressValidator.AliasDomain;
         error = await Guard.RunAsync(async () => template = await Store.GetAsync());
     }
 
