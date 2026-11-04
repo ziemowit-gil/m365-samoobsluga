@@ -79,11 +79,12 @@ public sealed class ExchangeRestClient(Func<CancellationToken, Task<string>> get
                 req.Headers.TryAddWithoutValidation("X-ResponseFormat", "json");
                 req.Headers.TryAddWithoutValidation("X-CmdletName", cmdlet);
                 req.Headers.TryAddWithoutValidation("X-ClientApplication", "ExoManagementModule");
+                req.Headers.TryAddWithoutValidation("User-Agent", "Samoobsluga-Poczty/1.0 (ExchangeRest)");
                 req.Headers.TryAddWithoutValidation("X-AnchorMailbox", Anchor(pfx, dom));
                 using var res = await http.SendAsync(req, ct);
                 var text = await res.Content.ReadAsStringAsync(ct);
                 if ((res.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) && !LooksLikeJson(text))
-                { last = $"HTTP {(int)res.StatusCode} bez treści (kotwica {pfx}@{dom})"; continue; }
+                { last = $"HTTP {(int)res.StatusCode} bez treści (kotwica {pfx}@{dom})" + DiagnosticHeaders(res); continue; }
                 JsonDocument doc;
                 try { doc = JsonDocument.Parse(text); } catch (JsonException) { throw new InvalidOperationException($"{cmdlet}: odpowiedź HTTP {(int)res.StatusCode} nie jest JSON-em."); }
                 using (doc)
@@ -101,6 +102,15 @@ public sealed class ExchangeRestClient(Func<CancellationToken, Task<string>> get
                 }
             }
         throw new InvalidOperationException((last ?? "Brak odpowiedzi z Exchange") + "." + TokenDiagnostics(token));
+    }
+
+    /// <summary>Nagłówki, w których Exchange zwykle podaje powód odmowy (jak w module stopek SZO).</summary>
+    public static string DiagnosticHeaders(HttpResponseMessage res)
+    {
+        var sb = new StringBuilder();
+        foreach (var name in new[] { "WWW-Authenticate", "x-ms-diagnostics", "request-id", "x-ms-ags-diagnostic", "X-FEServer", "X-BEServer" })
+            if (res.Headers.TryGetValues(name, out var v)) sb.Append($" {name}: {string.Join("; ", v)}.");
+        return sb.ToString();
     }
 
     private static bool LooksLikeJson(string text) { var t = text.TrimStart(); return t.StartsWith('{') || t.StartsWith('['); }

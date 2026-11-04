@@ -10,7 +10,7 @@ public class ExchangeRestTests
     private static string Jwt(string tid) =>
         "e30." + Convert.ToBase64String(Encoding.UTF8.GetBytes($"{{\"tid\":\"{tid}\",\"roles\":[\"Exchange.ManageAsApp\"]}}")).TrimEnd('=').Replace('+', '-').Replace('/', '_') + ".sig";
 
-    sealed class FakeHandler(Func<HttpRequestMessage, string, (HttpStatusCode, string)> reply) : HttpMessageHandler
+    sealed class FakeHandler(Func<HttpRequestMessage, string, (HttpStatusCode, string)> reply, string? diag = null) : HttpMessageHandler
     {
         public List<(string Anchor, string Cmdlet, string Body, string Url, string? Auth)> Calls = [];
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage r, CancellationToken ct)
@@ -19,7 +19,9 @@ public class ExchangeRestTests
             var anchor = r.Headers.GetValues("X-AnchorMailbox").Single();
             Calls.Add((anchor, r.Headers.GetValues("X-CmdletName").Single(), body, r.RequestUri!.ToString(), r.Headers.Authorization?.ToString()));
             var (code, text) = reply(r, anchor);
-            return new HttpResponseMessage(code) { Content = new StringContent(text, Encoding.UTF8, "application/json") };
+            var resp = new HttpResponseMessage(code) { Content = new StringContent(text, Encoding.UTF8, "application/json") };
+            if (diag is not null) resp.Headers.TryAddWithoutValidation("x-ms-diagnostics", diag);
+            return resp;
         }
     }
 
@@ -87,6 +89,24 @@ public class ExchangeRestTests
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => Client(h, "").InvokeAsync("Get-TransportRule"));
         Assert.Contains("403", ex.Message);
         Assert.Contains("Diagnostyka tokenu", ex.Message);
+    }
+
+    [Fact]
+    public async Task Naglowki_diagnostyczne_exchange_trafiaja_do_komunikatu_403()
+    {
+        var h = new FakeHandler((_, _) => (HttpStatusCode.Forbidden, ""), "2000008; reason=\"The token contains no roles\"");
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => Client(h).InvokeAsync("Get-TransportRule"));
+        Assert.Contains("x-ms-diagnostics", ex.Message);
+        Assert.Contains("no roles", ex.Message);
+    }
+
+    [Fact]
+    public async Task Zadanie_ma_naglowek_user_agent()
+    {
+        var seen = "";
+        var h = new FakeHandler((r, _) => { seen = string.Join(" ", r.Headers.UserAgent.Select(u => u.ToString())); return (HttpStatusCode.OK, "{\"value\":[]}"); });
+        await Client(h).InvokeAsync("Get-TransportRule");
+        Assert.Contains("Samoobsluga-Poczty", seen);
     }
 
     [Fact]
