@@ -15,7 +15,7 @@ Sprawdziłem to w dokumentacji Microsoft Learn (stan na 3 listopada 2026). Gdzie
 | Hasło | `POST /me/changePassword`. Zasady haseł egzekwuje Entra ID. | `User-PasswordProfile.ReadWrite.All` (wymaga zgody administratora, ale endpoint działa tylko na własnym koncie) |
 | Weryfikacja 2FA | Lista metod: `GET /me/authentication/methods`. Usuwanie urządzeń Microsoft Authenticator: `DELETE /me/authentication/microsoftAuthenticatorMethods/{id}`. Po 10 minutach od logowania Microsoft może poprosić o ponowne MFA. Aplikacja nie pozwala usunąć ostatniej metody. | `UserAuthenticationMethod.ReadWrite` |
 | Aliasy, odczyt | `GET /me?$select=proxyAddresses` i `GET /organization` (zweryfikowane domeny z pocztą). | `User.Read` |
-| Aliasy, zapis | W Graph `proxyAddresses` jest tylko do odczytu. Zapis robi się w Exchange Online (`Set-Mailbox -EmailAddresses`), więc aplikacja zapisuje wniosek w `App_Data/alias-requests.jsonl`, a administrator go realizuje. | brak |
+| Aliasy, zapis | W Graph `proxyAddresses` jest tylko do odczytu. Zapis robi się w Exchange Online (`Set-Mailbox -EmailAddresses`). Gdy połączenie aplikacji z Exchange działa (kreator Administrator: Exchange), zmiana wykonuje się **od razu i samodzielnie**, o ile wybrany adres jest wolny. Inaczej aplikacja zapisuje wniosek w `App_Data/alias-requests.jsonl`, a administrator go realizuje. | brak |
 | Stopka | Graph nie ma API do podpisów Outlooka (Microsoft nie planuje go dla roaming signatures). Aplikacja generuje stopkę według wzoru organizacji, a użytkownik kopiuje ją do Outlooka. | `User.Read` (stanowisko i telefon z profilu) |
 
 Dodawania nowych metod 2FA nie da się zrobić z aplikacji: według dokumentacji użytkownik nie dodaje telefonu do własnego konta przez Graph. Strona 2FA odsyła do https://aka.ms/mysecurityinfo.
@@ -26,7 +26,11 @@ Dodawania nowych metod 2FA nie da się zrobić z aplikacji: według dokumentacji
 
 Generator działa jak moduł stopek w SZO: jeden szablon HTML dla wszystkich. Dane organizacji i wygląd ustawia administrator na stronie „Administrator: stopka" (widoczna dla kont z `Samoobsluga:Admins`; zapis trafia do `App_Data/signature-template.json`, a wartości początkowe pochodzą z `Samoobsluga:Signature`): nazwa, adres, NIP, KRS, strona, logo, czcionka, rozmiary, kolory, separator, wybór widocznych pól oraz treść promocyjna. Wygląd jest przycinany do dozwolonych wartości (czcionki z listy, kolory `#rrggbb`, logo tylko przez https), a treść promocyjna przechodzi przez listę dozwolonych znaczników. Użytkownik wpisuje tylko stanowisko i telefon albo pobiera je z profilu Microsoft 365. Imię, nazwisko i e-mail biorą się z konta. Aplikacja pokazuje podgląd i kopiuje stopkę do schowka w wersji HTML i tekstowej. Stopkę dopisywaną po stronie serwera, do każdej wysyłanej wiadomości, ustawia administrator regułą transportu w Exchange.
 
-### Aliasy: droga do pełnej automatyzacji
+### Aliasy: samoobsługa
+
+Użytkownik dodaje i usuwa alias w swojej skrzynce sam. Aplikacja sprawdza domenę (tylko zweryfikowane), format i nazwy zarezerwowane (admin, postmaster, abuse, noreply, kontakt i podobne), limit aliasów na osobę (`Samoobsluga:MaxAliasesPerUser`, domyślnie 5) i to, czy adres jest wolny w organizacji (`Get-Recipient`). Potem czyta adresy skrzynki (`Get-Mailbox`) i zapisuje nową listę (`Set-Mailbox -EmailAddresses`), zachowując adres główny. Skrzynka zawsze pochodzi z tokenu zalogowanej osoby, nigdy z formularza. Gdy Exchange nie jest skonfigurowany albo zwraca błąd, wniosek trafia do kolejki administratora, a użytkownik dostaje o tym komunikat. Wykonywanie od razu można wyłączyć ustawieniem `Samoobsluga:AutoApplyAliases=false`. Każda zmiana i każdy wniosek trafiają do dziennika audytu.
+
+### Aliasy: droga do pełnej automatyzacji (starsza notatka)
 
 Zapis aliasu wymaga uprawnień Exchange wyższych niż użytkownika. Zamiast je rozdawać, podmień `IAliasChangeExecutor` na wąski backend. Ma przyjmować UPN wyłącznie z zaufanego tokenu, walidować alias (`AddressValidator`) i mieć uprawnienia ograniczone do jednej skrzynki. Sposób ograniczania uprawnień aplikacji w Exchange Online trzeba potwierdzić w aktualnej dokumentacji przed wdrożeniem. Do tego czasu działa tryb wniosków. Backend łączący się z Exchange Online bez użytkownika też loguje się certyfikatem, tak jak ta aplikacja (patrz niżej).
 

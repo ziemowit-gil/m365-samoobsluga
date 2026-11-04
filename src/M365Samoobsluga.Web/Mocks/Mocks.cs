@@ -30,16 +30,16 @@ public sealed class MockMailbox
 
 public sealed class MockAliasService(MockMailbox m) : IAliasService
 {
-    public bool AppliesImmediately => false;
+    public bool AppliesImmediately => true;
     public Task<MailboxAliases> GetAsync(CancellationToken ct = default) => Task.FromResult(new MailboxAliases(m.Primary, m.Aliases.ToList(), m.Domains));
-    public Task AddAsync(string a, CancellationToken ct = default)
+    public Task<AliasOutcome> AddAsync(string a, CancellationToken ct = default)
     {
         var at = a.LastIndexOf('@');
         var v = AddressValidator.ValidateAlias(at > 0 ? a[..at] : a, at > 0 ? a[(at + 1)..] : "", m.Domains, m.Aliases.Append(m.Primary).ToList());
         if (!v.IsValid) throw new UserFacingException(v.Error!);
-        m.Aliases.Add(v.Normalized!); return Task.CompletedTask;
+        m.Aliases.Add(v.Normalized!); return Task.FromResult(AliasOutcome.Applied);
     }
-    public Task RemoveAsync(string a, CancellationToken ct = default) { m.Aliases.Remove(a); return Task.CompletedTask; }
+    public Task<AliasOutcome> RemoveAsync(string a, CancellationToken ct = default) { m.Aliases.Remove(a); return Task.FromResult(AliasOutcome.Applied); }
 }
 public sealed class MockAutoReplyService(MockMailbox m) : IAutoReplyService
 {

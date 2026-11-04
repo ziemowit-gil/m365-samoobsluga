@@ -6,6 +6,10 @@ namespace M365Samoobsluga.Core.Validation;
 public static class AddressValidator
 {
     private static readonly Regex LocalPart = new(@"^[a-z0-9]+(?:[._-][a-z0-9]+)*$", RegexOptions.Compiled);
+    /// <summary>Nazwy ról i kont systemowych, których nie wolno przypisać jako alias (przejęcie skrzynki kontaktowej).</summary>
+    private static readonly HashSet<string> Reserved = new(StringComparer.OrdinalIgnoreCase)
+    { "admin", "administrator", "administrators", "postmaster", "abuse", "hostmaster", "webmaster", "root", "security", "noreply", "no-reply", "mailer-daemon", "info", "kontakt", "biuro", "zarzad", "rodo", "iod" };
+
     private static readonly Regex Domain = new(@"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$", RegexOptions.Compiled);
 
     /// <summary>Lista domen do wyboru: domyślna (np. feer.org.pl) na początku, reszta alfabetycznie. Domyślna spoza listy jest pomijana.</summary>
@@ -32,6 +36,7 @@ public static class AddressValidator
         if (lp.Length > 64) return ValidationResult.Fail("Nazwa aliasu może mieć najwyżej 64 znaki.");
         if (!LocalPart.IsMatch(lp))
             return ValidationResult.Fail("Nazwa aliasu może zawierać tylko litery a-z bez polskich znaków, cyfry oraz pojedyncze kropki, myślniki lub podkreślniki w środku.");
+        if (Reserved.Contains(lp)) return ValidationResult.Fail("Ta nazwa jest zarezerwowana. Wybierz inną.");
         if (dom.Length == 0) return ValidationResult.Fail("Wybierz domenę aliasu.");
         if (!verifiedDomains.Contains(dom, StringComparer.OrdinalIgnoreCase))
             return ValidationResult.Fail("Ta domena nie jest zweryfikowana w organizacji. Wybierz domenę z listy.");

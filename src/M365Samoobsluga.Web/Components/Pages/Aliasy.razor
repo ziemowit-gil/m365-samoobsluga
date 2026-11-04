@@ -12,7 +12,7 @@ else if (data is not null)
 <p>Adres główny: <strong>@data.PrimaryAddress</strong></p>
 @if (!Svc.AppliesImmediately)
 {
-    <p class="msg info">Zmiany aliasów wymagają uprawnień administratora Exchange. Twoja prośba trafi do administratora i zacznie działać po jej realizacji.</p>
+    <p class="msg info">Zmiany aliasów wykonuje administrator. Twoja prośba trafi do niego i zacznie działać po jej realizacji.</p>
 }
 <Status Error="@error" Success="@ok" />
 <h2>Dodatkowe aliasy</h2>
@@ -52,15 +52,17 @@ else
     {
         busy = true; ok = null;
         var v = AddressValidator.ValidateAlias(local, domain, data!.VerifiedDomains, data.SecondaryAddresses.Append(data.PrimaryAddress).ToList());
-        error = v.IsValid ? await Guard.RunAsync(() => Svc.AddAsync(v.Normalized!)) : v.Error;
-        if (error is null) { ok = Svc.AppliesImmediately ? "Alias dodany." : "Wniosek o dodanie aliasu został zapisany."; local = ""; await Load(); }
+        var outcome = AliasOutcome.Queued;
+        error = v.IsValid ? await Guard.RunAsync(async () => outcome = await Svc.AddAsync(v.Normalized!)) : v.Error;
+        if (error is null) { ok = outcome == AliasOutcome.Applied ? "Alias dodany. Działa od razu (zmiany w Exchange mogą być widoczne po kilku minutach)." : "Nie mogliśmy dodać aliasu od razu, więc zapisaliśmy wniosek dla administratora."; local = ""; await Load(); }
         busy = false;
     }
     async Task Remove(string a)
     {
         busy = true; ok = null;
-        error = await Guard.RunAsync(() => Svc.RemoveAsync(a));
-        if (error is null) { ok = Svc.AppliesImmediately ? "Alias usunięty." : "Wniosek o usunięcie aliasu został zapisany."; await Load(); }
+        var outcome = AliasOutcome.Queued;
+        error = await Guard.RunAsync(async () => outcome = await Svc.RemoveAsync(a));
+        if (error is null) { ok = outcome == AliasOutcome.Applied ? "Alias usunięty." : "Nie mogliśmy usunąć aliasu od razu, więc zapisaliśmy wniosek dla administratora."; await Load(); }
         busy = false;
     }
 }

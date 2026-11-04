@@ -10,7 +10,7 @@ namespace M365Samoobsluga.Graph.Services;
 /// Zapis: proxyAddresses jest w Graph tylko do odczytu, więc zmiany idą przez <see cref="IAliasChangeExecutor"/>
 /// (wniosek do administratora albo wąski backend z Exchange Online).
 /// </summary>
-public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExecutor executor, ICurrentUser user) : IAliasService
+public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExecutor executor, ICurrentUser user, int maxAliases = 5) : IAliasService
 {
     public bool AppliesImmediately => executor.AppliesImmediately;
 
@@ -31,7 +31,7 @@ public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExec
         catch (Exception ex) when (ex is not OperationCanceledException) { throw GraphErrorMapper.Map(ex, "aliasy"); }
     }
 
-    public async Task AddAsync(string address, CancellationToken ct = default)
+    public async Task<AliasOutcome> AddAsync(string address, CancellationToken ct = default)
     {
         var cur = await GetAsync(ct);
         var all = cur.SecondaryAddresses.Append(cur.PrimaryAddress).ToList();
@@ -39,14 +39,15 @@ public sealed class GraphAliasService(GraphServiceClient graph, IAliasChangeExec
         var v = at > 0 ? AddressValidator.ValidateAlias(address[..at], address[(at + 1)..], cur.VerifiedDomains, all)
                        : ValidationResult.Fail("Nieprawidłowy adres aliasu.");
         if (!v.IsValid) throw new UserFacingException(v.Error!);
-        await executor.ExecuteAsync(new AliasChange(user.Current.UserPrincipalName, AliasChangeKind.Add, v.Normalized!), ct);
+        if (cur.SecondaryAddresses.Count >= maxAliases) throw new UserFacingException($"Możesz mieć najwyżej {maxAliases} dodatkowych aliasów. Usuń jeden, żeby dodać nowy.");
+        return await executor.ExecuteAsync(new AliasChange(user.Current.UserPrincipalName, AliasChangeKind.Add, v.Normalized!), ct);
     }
 
-    public async Task RemoveAsync(string address, CancellationToken ct = default)
+    public async Task<AliasOutcome> RemoveAsync(string address, CancellationToken ct = default)
     {
         var cur = await GetAsync(ct);
         var a = address.Trim().ToLowerInvariant();
         if (!cur.SecondaryAddresses.Contains(a)) throw new UserFacingException("Można usuwać tylko dodatkowe aliasy; adres główny jest zablokowany.");
-        await executor.ExecuteAsync(new AliasChange(user.Current.UserPrincipalName, AliasChangeKind.Remove, a), ct);
+        return await executor.ExecuteAsync(new AliasChange(user.Current.UserPrincipalName, AliasChangeKind.Remove, a), ct);
     }
 }

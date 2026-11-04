@@ -5,11 +5,14 @@ namespace M365Samoobsluga.Core.Services;
 /// <summary>Wyjątek z komunikatem po polsku, bezpiecznym do pokazania użytkownikowi.</summary>
 public sealed class UserFacingException(string message, Exception? inner = null) : Exception(message, inner);
 
+/// <summary>Co się stało ze zmianą aliasu: wykonano ją od razu w Exchange albo zapisano jako wniosek dla administratora.</summary>
+public enum AliasOutcome { Applied, Queued }
+
 public interface IAliasService
 {
     Task<MailboxAliases> GetAsync(CancellationToken ct = default);
-    Task AddAsync(string address, CancellationToken ct = default);
-    Task RemoveAsync(string address, CancellationToken ct = default);
+    Task<AliasOutcome> AddAsync(string address, CancellationToken ct = default);
+    Task<AliasOutcome> RemoveAsync(string address, CancellationToken ct = default);
     /// <summary>Czy zmiany są wykonywane od razu, czy trafiają jako wniosek do administratora.</summary>
     bool AppliesImmediately { get; }
 }

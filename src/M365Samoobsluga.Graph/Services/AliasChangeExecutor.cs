@@ -1,4 +1,5 @@
 using System.Text.Json;
+using M365Samoobsluga.Core.Services;
 using Microsoft.Extensions.Logging;
 
 namespace M365Samoobsluga.Graph.Services;
@@ -10,7 +11,7 @@ public sealed record AliasChange(string UserPrincipalName, AliasChangeKind Kind,
 public interface IAliasChangeExecutor
 {
     bool AppliesImmediately { get; }
-    Task ExecuteAsync(AliasChange change, CancellationToken ct = default);
+    Task<AliasOutcome> ExecuteAsync(AliasChange change, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -22,7 +23,7 @@ public sealed class FileQueueAliasChangeExecutor(string path, ILogger<FileQueueA
     private static readonly SemaphoreSlim Gate = new(1, 1);
     public bool AppliesImmediately => false;
 
-    public async Task ExecuteAsync(AliasChange change, CancellationToken ct = default)
+    public async Task<AliasOutcome> ExecuteAsync(AliasChange change, CancellationToken ct = default)
     {
         await Gate.WaitAsync(ct);
         try
@@ -31,6 +32,7 @@ public sealed class FileQueueAliasChangeExecutor(string path, ILogger<FileQueueA
             var line = JsonSerializer.Serialize(new { at = DateTimeOffset.UtcNow, change.UserPrincipalName, kind = change.Kind.ToString(), change.Address });
             await File.AppendAllTextAsync(path, line + Environment.NewLine, ct);
             logger.LogInformation("Wniosek o alias zapisany: {Kind} {Address}", change.Kind, change.Address);
+            return AliasOutcome.Queued;
         }
         finally { Gate.Release(); }
     }

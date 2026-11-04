@@ -6,25 +6,13 @@ using Microsoft.Identity.Client;
 namespace M365Samoobsluga.Graph.Services;
 
 /// <summary>Wdrażanie reguły stopki i czyszczenie podpisów przez REST (bez PowerShella). Uwierzytelnianie certyfikatem aplikacji (MSAL).</summary>
-public sealed class ExchangeRestRuleDeployer(ExchangeSettingsProvider provider, string dataDir, IHttpClientFactory? factory = null) : IExchangeRuleDeployer
+public sealed class ExchangeRestRuleDeployer(ExchangeRestAccess access, ExchangeSettingsProvider provider, string dataDir) : IExchangeRuleDeployer
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private ExchangeSettings S => provider.Get();
     public bool IsConfigured => ExchangeCommandBuilder.Validate(S) is null;
 
-    private ExchangeRestClient Client()
-    {
-        var s = S;
-        var pwd = provider.ReadPassword(s);
-        return new ExchangeRestClient(async ct =>
-        {
-            using var cert = X509CertificateLoader.LoadPkcs12FromFile(s.CertificatePath, pwd, X509KeyStorageFlags.EphemeralKeySet);
-            var app = ConfidentialClientApplicationBuilder.Create(s.AppId).WithCertificate(cert)
-                .WithAuthority($"https://login.microsoftonline.com/{s.Organization}").Build();
-            var r = await app.AcquireTokenForClient(["https://outlook.office365.com/.default"]).ExecuteAsync(ct);
-            return r.AccessToken;
-        }, s.Organization, factory?.CreateClient() ?? new HttpClient { Timeout = TimeSpan.FromMinutes(2) });
-    }
+    private ExchangeRestClient Client() => access.Client();
 
     private async Task<ExchangeOpResult> Guarded(Func<ExchangeRestClient, Task<string>> op, CancellationToken ct)
     {

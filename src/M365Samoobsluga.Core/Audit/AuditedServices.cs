@@ -21,8 +21,17 @@ public sealed class AuditedAliasService(IAliasService inner, IAuditLog log, ICur
 {
     public bool AppliesImmediately => inner.AppliesImmediately;
     public Task<MailboxAliases> GetAsync(CancellationToken ct = default) => inner.GetAsync(ct);
-    public Task AddAsync(string a, CancellationToken ct = default) => Run(inner.AppliesImmediately ? "alias.dodaj" : "alias.dodaj.wniosek", a, () => inner.AddAsync(a, ct));
-    public Task RemoveAsync(string a, CancellationToken ct = default) => Run(inner.AppliesImmediately ? "alias.usun" : "alias.usun.wniosek", a, () => inner.RemoveAsync(a, ct));
+    public Task<AliasOutcome> AddAsync(string a, CancellationToken ct = default) => Change("alias.dodaj", a, () => inner.AddAsync(a, ct));
+    public Task<AliasOutcome> RemoveAsync(string a, CancellationToken ct = default) => Change("alias.usun", a, () => inner.RemoveAsync(a, ct));
+
+    // Akcja zależy od wyniku: wykonane od razu albo zapisane jako wniosek.
+    private async Task<AliasOutcome> Change(string action, string target, Func<Task<AliasOutcome>> op)
+    {
+        AliasOutcome outcome = AliasOutcome.Queued;
+        await Run(action, target, async () => outcome = await op());
+        if (outcome == AliasOutcome.Queued) log.Write(new AuditEntry(DateTimeOffset.UtcNow, user.Current.UserPrincipalName, action + ".wniosek", target, true, "zapisano wniosek"));
+        return outcome;
+    }
 }
 
 public sealed class AuditedAutoReplyService(IAutoReplyService inner, IAuditLog log, ICurrentUser user) : AuditBase(log, user), IAutoReplyService

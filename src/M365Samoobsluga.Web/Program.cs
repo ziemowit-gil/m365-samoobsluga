@@ -60,9 +60,16 @@ if (!useMock && configured)
     builder.Services.AddAuthorization(o => o.FallbackPolicy = o.DefaultPolicy);
     builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
+    // Aliasy: samoobsługa (wykonanie od razu w Exchange, gdy adres jest wolny); kolejka dla administratora jako zapas.
     builder.Services.AddSingleton<IAliasChangeExecutor>(sp =>
-        new FileQueueAliasChangeExecutor(opts.GetValue<string>("AliasRequestQueuePath") ?? "App_Data/alias-requests.jsonl", sp.GetRequiredService<ILogger<FileQueueAliasChangeExecutor>>()));
-    builder.Services.AddScoped<GraphAliasService>();
+    {
+        var queue = new FileQueueAliasChangeExecutor(opts.GetValue<string>("AliasRequestQueuePath") ?? "App_Data/alias-requests.jsonl", sp.GetRequiredService<ILogger<FileQueueAliasChangeExecutor>>());
+        if (!opts.GetValue("AutoApplyAliases", true)) return queue;
+        var access = sp.GetRequiredService<ExchangeRestAccess>();
+        return new ExchangeAliasChangeExecutor(access.Client, () => access.IsConfigured, queue, sp.GetRequiredService<ILogger<ExchangeAliasChangeExecutor>>());
+    });
+    builder.Services.AddScoped<GraphAliasService>(sp => new GraphAliasService(sp.GetRequiredService<Microsoft.Graph.GraphServiceClient>(),
+        sp.GetRequiredService<IAliasChangeExecutor>(), sp.GetRequiredService<ICurrentUser>(), opts.GetValue("MaxAliasesPerUser", 5)));
     builder.Services.AddScoped<GraphAutoReplyService>();
     builder.Services.AddScoped<GraphForwardingService>(sp =>
         new GraphForwardingService(sp.GetRequiredService<Microsoft.Graph.GraphServiceClient>(), sp.GetRequiredService<GraphAliasService>()));
@@ -116,12 +123,13 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton(exchange);
 var exchangeProvider = new ExchangeSettingsProvider(exchange, dataDir);
 builder.Services.AddSingleton(exchangeProvider);
+builder.Services.AddSingleton(sp => new ExchangeRestAccess(exchangeProvider, sp.GetRequiredService<IHttpClientFactory>()));
 builder.Services.AddSingleton<IExchangeAutomationStore>(new FileExchangeAutomationStore(Path.Combine(dataDir, "exchange-automation.json")));
 builder.Services.AddSingleton<PowerShellDeployerAccessor>(sp => new PowerShellDeployerAccessor(
     useMock ? new MockExchangeDeployer()
     : string.Equals(exchange.Mode, "PowerShell", StringComparison.OrdinalIgnoreCase)
         ? new PowerShellExchangeRuleDeployer(exchangeProvider, Path.Combine(AppContext.BaseDirectory, "scripts"), dataDir, sp.GetRequiredService<ILogger<PowerShellExchangeRuleDeployer>>())
-        : new ExchangeRestRuleDeployer(exchangeProvider, dataDir, sp.GetRequiredService<IHttpClientFactory>())));
+        : new ExchangeRestRuleDeployer(sp.GetRequiredService<ExchangeRestAccess>(), exchangeProvider, dataDir)));
 builder.Services.AddScoped<IExchangeRuleDeployer>(sp =>
     new AuditedExchangeRuleDeployer(sp.GetRequiredService<PowerShellDeployerAccessor>().Raw, sp.GetRequiredService<IAuditLog>(), sp.GetRequiredService<ICurrentUser>()));
 if (!useMock && configured) builder.Services.AddHostedService<ExchangeRuleSync>();
