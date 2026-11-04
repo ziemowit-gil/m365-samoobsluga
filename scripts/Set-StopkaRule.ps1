@@ -96,8 +96,8 @@ try {
     $html = (Get-Content -LiteralPath $HtmlFile -Raw -Encoding UTF8).Trim()
     if ($html.Length -eq 0) { throw 'Plik szablonu jest pusty.' }
     if ($html.Length -gt $MaxChars) { throw "Szablon ma $($html.Length) znaków, a Exchange dopuszcza $MaxChars. Skróć treść promocyjną w aplikacji." }
-    foreach ($token in '%%DisplayName%%') {
-        if ($html -notlike "*$token*") { Write-Warning "Szablon nie zawiera tokenu $token. Czy to na pewno szablon z aplikacji?" }
+    if ($html -notlike '*%%DisplayName%%*' -and $html -notlike '*%%FirstName%%*') {
+        Write-Warning 'Szablon nie zawiera tokenu imienia i nazwiska (%%DisplayName%% ani %%FirstName%%). Czy to na pewno szablon z aplikacji?'
     }
 
     $params = @{
