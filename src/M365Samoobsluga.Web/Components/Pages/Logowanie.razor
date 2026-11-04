@@ -7,20 +7,20 @@
 @inject AuthenticationStateProvider Auth
 @inject IConfiguration Config
 <PageTitle>Logowanie · Samoobsługa poczty</PageTitle>
-<div class="lm-hero tone-blue">
+<div class="lm-hero">
     <h1>Samoobsługa poczty Microsoft 365</h1>
     <p class="login-org">Fundacja Edukacji Empatii Rozwoju FEER</p>
 </div>
 <p class="lm-intro">Ustawisz tu własne konto pocztowe, bez zgłaszania zmian administratorowi:</p>
-<ul class="lm-tiles">
-    <li class="tone-sky"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("at"))</svg><span>Aliasy e-mail</span></li>
-    <li class="tone-sand"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("key"))</svg><span>Hasło</span></li>
-    <li class="tone-mist"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("shield"))</svg><span>Weryfikacja 2FA</span></li>
-    <li class="tone-sand"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("pen"))</svg><span>Stopka wiadomości</span></li>
-    <li class="tone-mist"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("reply"))</svg><span>Autoresponder</span></li>
-    <li class="tone-sky"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("forward"))</svg><span>Przekierowanie poczty</span></li>
+<ul class="lm-chips">
+    <li><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("at"))</svg><span>Aliasy e-mail</span></li>
+    <li><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("key"))</svg><span>Hasło</span></li>
+    <li><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("shield"))</svg><span>Weryfikacja 2FA</span></li>
+    <li><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("pen"))</svg><span>Stopka wiadomości</span></li>
+    <li><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("reply"))</svg><span>Autoresponder</span></li>
+    <li><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths("forward"))</svg><span>Przekierowanie poczty</span></li>
 </ul>
-<a class="lm-signin tone-amber" href="@SignInHref">
+<a class="lm-signin" href="@SignInHref">
     <span class="lm-signin-title">Zaloguj się kontem Microsoft 365</span>
     <span class="lm-signin-note">Użyj konta w domenie @Domain. Zmieniasz wyłącznie swoje konto.</span>
     <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 12h14"/><path d="M13 6l6 6-6 6"/></svg>

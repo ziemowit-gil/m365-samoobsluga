@@ -6,25 +6,24 @@
 @inject IAuthorizationService Authz
 <PageTitle>Start · Samoobsługa poczty</PageTitle>
 <h1>Samoobsługa poczty</h1>
-<p class="metro-lead">@Greeting Wybierz, co chcesz ustawić. Zmieniasz wyłącznie własne konto.</p>
+<p class="card-lead">@Greeting Wybierz, co chcesz ustawić. Zmieniasz wyłącznie własne konto.</p>
 
 @foreach (var tab in Tabs)
 {
-    <section class="metro-section" aria-labelledby="ms-@tab.Id">
+    <section class="card-section" aria-labelledby="ms-@tab.Id">
         <h2 id="ms-@tab.Id">@tab.Title</h2>
-        <ul class="metro-grid">
-            @{ var n = 0; }
-            @foreach (var item in tab.Groups.SelectMany(g => g.Items))
+        <ul class="card-grid">
+            @foreach (var item in tab.Groups.SelectMany(g => g.Items).Where(i => i.Href != ""))
             {
-                var tone = ToneFor(tab.Id, n);
-                <li class="@(n == 0 ? "metro-wide" : "")">
-                    <a class="metro-tile tone-@tone" href="@item.Href">
-                        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">@((MarkupString)RibbonDefinition.IconPaths(item.Icon))</svg>
-                        <span class="metro-label">@item.Label</span>
-                        <span class="metro-desc">@item.Description</span>
+                <li>
+                    <a class="card" href="@item.Href">
+                        <span class="card-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">@((MarkupString)RibbonDefinition.IconPaths(item.Icon))</svg>
+                        </span>
+                        <span class="card-label">@item.Label</span>
+                        <span class="card-desc">@item.Description</span>
                     </a>
                 </li>
-                n++;
             }
         </ul>
     </section>
@@ -34,14 +33,6 @@
     bool isAdmin; string greeting = "";
     string Greeting => greeting;
     IEnumerable<RibbonTab> Tabs => RibbonDefinition.Tabs.Where(t => isAdmin || !t.AdminOnly);
-
-    static readonly Dictionary<string, string[]> Tones = new()
-    {
-        ["konto"] = ["blue", "sky", "dark", "sand"],
-        ["poczta"] = ["amber", "sky", "sand"],
-        ["administrator"] = ["dark", "mist", "mist", "blue", "blue"],
-    };
-    static string ToneFor(string tabId, int i) { var t = Tones.TryGetValue(tabId, out var a) ? a : ["blue"]; return t[i % t.Length]; }
 
     protected override async Task OnInitializedAsync()
     {

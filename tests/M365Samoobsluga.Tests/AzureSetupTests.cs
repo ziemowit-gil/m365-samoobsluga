@@ -221,12 +221,13 @@ public class MetroTilesTests
     }
 
     [Theory]
+    [InlineData("#000000", "#ffffff")]
+    [InlineData("#3f3f3b", "#ffffff")]
+    [InlineData("#000000", "#f3f3f3")]
     [InlineData("#ffffff", "#1d68f2")]
-    [InlineData("#ffffff", "#1d1d1a")]
-    [InlineData("#1d1d1a", "#ea8f00")]
-    [InlineData("#1d1d1a", "#dbe7ff")]
-    [InlineData("#1d1d1a", "#fde9c4")]
-    [InlineData("#1d1d1a", "#e3ecea")]
+    [InlineData("#ffffff", "#1555c9")]
+    [InlineData("#0b4fc4", "#e6edfb")]
+    [InlineData("#3f3f3b", "#f3f3f3")]
     public void Kontrast_tekstu_na_kafelku_to_co_najmniej_4_5_do_1(string fg, string bg) =>
         Assert.True(Contrast(fg, bg) >= 4.5, $"{fg} na {bg}: {Contrast(fg, bg):F2}");
 
