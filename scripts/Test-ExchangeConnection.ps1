@@ -71,6 +71,9 @@ catch {
     Write-Host ("BŁĄD połączenia: " + $_.Exception.GetType().FullName + ": " + $_.Exception.Message) -ForegroundColor Red
     if ($_.Exception.InnerException) { Write-Host ("Wewnętrzny: " + $_.Exception.InnerException.Message) -ForegroundColor Red }
     Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray
+    # Stos .NET wskazuje metodę w module, w której powstał NullReference
+    $dn = $_.Exception.StackTrace; if ($dn) { Write-Host ("Stos .NET:`n" + ($dn.Substring(0, [Math]::Min(1500, $dn.Length)))) -ForegroundColor DarkGray }
+    Write-Host ("Środowisko: HOME=$env:HOME, TMP=$([System.IO.Path]::GetTempPath()), użytkownik=$([Environment]::UserName), IsWritableHome=$((Test-Path -LiteralPath $env:HOME -PathType Container))") -ForegroundColor DarkGray
     Write-Host 'Podpowiedź: błąd 401/AADSTS oznacza brak zgody lub niezreplikowaną rolę (poczekaj 15-30 minut); NullReference zwykle oznacza złą domenę organizacji albo nieudane uwierzytelnienie certyfikatem.' -ForegroundColor Yellow
     exit 1
 }
