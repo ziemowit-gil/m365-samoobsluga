@@ -61,7 +61,8 @@ try {
 # 4. Połączenie certyfikatem (obiekt certyfikatu zamiast ścieżki i hasła)
 Import-Module ExchangeOnlineManagement
 try {
-    Connect-ExchangeOnline -AppId $AppId -Certificate $cert -Organization $Organization -ShowBanner:$false
+    . (Join-Path $PSScriptRoot 'ExoAuth.ps1')
+    Connect-ExoAppOnly -AppId $AppId -CertificateFilePath $CertificateFilePath -Organization $Organization
     $rules = @(Get-TransportRule -ResultSize 1000)
     $mine = $rules | Where-Object { $_.Name -eq 'Samoobsługa FEER: stopka e-mail' }
     Write-Host "Połączenie działa. Reguł transportowych: $($rules.Count). Reguła stopki: $(if ($mine) { "istnieje (stan $($mine.State), tryb $($mine.Mode))" } else { 'jeszcze nie istnieje' })."

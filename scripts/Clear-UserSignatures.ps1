@@ -44,7 +44,7 @@ if (-not $SkipConnect) {
         throw 'Brak modułu ExchangeOnlineManagement. Zainstaluj: Install-Module ExchangeOnlineManagement -Scope CurrentUser'
     }
     Import-Module ExchangeOnlineManagement
-    $conn = @{}
+    $conn = @{}; $useAppOnly = $false
     if ($AppId -and $CertificateFilePath -and $Organization) {
         $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificateFilePath, $env:M365_EXO_CERT_PASSWORD)
         $conn += @{ AppId = $AppId; Certificate = $cert; Organization = $Organization; ShowBanner = $false }
@@ -52,7 +52,8 @@ if (-not $SkipConnect) {
         $conn += @{ UserPrincipalName = $ConnectUserPrincipalName }
     }
     if (-not ($AppId -and $CertificateFilePath -and $Organization) -and -not ($AppId -and $CertificateThumbprint -and $Organization) -and -not $Browser) { $conn += @{ Device = $true } }
-    Connect-ExchangeOnline @conn
+    if ($useAppOnly) { . (Join-Path $PSScriptRoot 'ExoAuth.ps1'); Connect-ExoAppOnly -AppId $AppId -CertificateFilePath $CertificateFilePath -Organization $Organization }
+    else { Connect-ExchangeOnline @conn }
     $WhatIfPreference = $savedWhatIf
 }
 
