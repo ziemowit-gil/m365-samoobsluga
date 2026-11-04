@@ -13,15 +13,20 @@ function Get-ExoAppToken {
     $app.AcquireTokenForClient([string[]]@('https://outlook.office365.com/.default')).ExecuteAsync().GetAwaiter().GetResult().AccessToken
 }
 
+# Tylko polecenia, których używają skrypty. Mniejszy zestaw omija część inicjalizacji modułu (tymczasowego modułu poleceń),
+# w której Connect-ExchangeOnline 3.10.x potrafi zgłosić NullReference przy tokenie aplikacji (bez konta użytkownika).
+$script:ExoCommands = @('Get-TransportRule', 'New-TransportRule', 'Set-TransportRule', 'Remove-TransportRule',
+                        'Get-Mailbox', 'Get-MailboxMessageConfiguration', 'Set-MailboxMessageConfiguration')
+
 function Connect-ExoAppOnly {
     param([Parameter(Mandatory)][string]$AppId, [Parameter(Mandatory)][string]$CertificateFilePath, [Parameter(Mandatory)][string]$Organization)
     $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificateFilePath, $env:M365_EXO_CERT_PASSWORD)
     try {
         $token = Get-ExoAppToken -AppId $AppId -Cert $cert -Organization $Organization
-        Connect-ExchangeOnline -AccessToken $token -Organization $Organization -ShowBanner:$false
+        Connect-ExchangeOnline -AccessToken $token -Organization $Organization -ShowBanner:$false -BypassMailboxAnchoring -SkipLoadingFormatData -CommandName $script:ExoCommands
         return
     } catch {
         Write-Warning ("Połączenie przez token nie powiodło się (" + $_.Exception.Message + "). Próbuję certyfikatem.")
     }
-    Connect-ExchangeOnline -AppId $AppId -Certificate $cert -Organization $Organization -ShowBanner:$false
+    Connect-ExchangeOnline -AppId $AppId -Certificate $cert -Organization $Organization -ShowBanner:$false -BypassMailboxAnchoring -SkipLoadingFormatData -CommandName $script:ExoCommands
 }
